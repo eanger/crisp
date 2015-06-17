@@ -1,4 +1,5 @@
 # Read
+- add special characters #\newline and #\space
 
 # Evaluate
 

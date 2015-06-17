@@ -11,15 +11,18 @@ class Value {
     enum class Type {
       FIXNUM,
       BOOLEAN,
+      CHARACTER,
     };
     Type type;
     union {
       long fixnum;
       bool boolean;
+      char character;
     };
 
     explicit Value(long num) : type{Type::FIXNUM}, fixnum{num} {}
     explicit Value(bool b) : type{Type::BOOLEAN}, boolean{b} {}
+    explicit Value(char c) : type{Type::CHARACTER}, character{c} {}
     Value() {}
   private:
 };
@@ -49,8 +52,17 @@ Expression read(stack<char> input) {
       expr.val = True;
     } else if(character == 'f'){
       expr.val = False;
+    } else if(character == '\\'){
+      if(input.empty()){
+        cerr << "Error: Empty character literal\n";
+        exit(-1);
+      }
+      character = input.top();
+      input.pop();
+      expr.val.type = Value::Type::CHARACTER;
+      expr.val.character = character;
     } else {
-      cerr << "Error: Unknown bool literal '" << character << "'\n";
+      cerr << "Error: Unknown char literal '" << character << "'\n";
       exit(-1);
     }
   } else {
@@ -99,6 +111,9 @@ void print(Value value) {
       } else {
         cout << "False\n";
       }
+    } break;
+    case Value::Type::CHARACTER:{
+      cout << "#\\" << value.character << "\n";
     } break;
     default:{
       assert(false && "Invalid Value type");
