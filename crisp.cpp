@@ -9,21 +9,28 @@ using namespace std;
 class Value {
   public:
     enum class Type {
+      EMPTY,
       FIXNUM,
       BOOLEAN,
       CHARACTER,
+      STRING,
     };
     Type type;
     union {
       long fixnum;
       bool boolean;
       char character;
+      char* str;
     };
 
-    explicit Value(long num) : type{Type::FIXNUM}, fixnum{num} {}
+    explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
     explicit Value(bool b) : type{Type::BOOLEAN}, boolean{b} {}
     explicit Value(char c) : type{Type::CHARACTER}, character{c} {}
-    Value() {}
+    explicit Value(const char* s) : type{Type::STRING} {
+      str = new char[strlen(s)]();
+      strcpy(str, s);
+    }
+    Value() : type{Type::EMPTY} {}
   private:
 };
 
@@ -42,55 +49,74 @@ bool isDelimiter(char x) {
 
 Expression read(stack<char> input) {
   Expression expr;
-  char character = input.top();
-  input.pop();
-
-  if(character == '#'){ // read a boolean
-    character = input.top();
+  if(!input.empty()){
+    char character = input.top();
     input.pop();
-    if(character == 't'){
-      expr.val = True;
-    } else if(character == 'f'){
-      expr.val = False;
-    } else if(character == '\\'){
-      if(input.empty()){
-        cerr << "Error: Empty character literal\n";
-        exit(-1);
+
+    if(character == '#'){ // read a boolean
+      character = input.top();
+      input.pop();
+      if(character == 't'){
+        expr.val = True;
+      } else if(character == 'f'){
+        expr.val = False;
+      } else if(character == '\\'){
+        if(input.empty()){
+          cerr << "Error: Empty character literal\n";
+          return expr;
+        }
+        character = input.top();
+        input.pop();
+        expr.val = Value(character);
+      } else {
+        cerr << "Error: Unknown char literal '" << character << "'\n";
+        return expr;
       }
-      character = input.top();
-      input.pop();
-      expr.val.type = Value::Type::CHARACTER;
-      expr.val.character = character;
-    } else {
-      cerr << "Error: Unknown char literal '" << character << "'\n";
-      exit(-1);
-    }
-  } else {
-    long sign = 1;
-    if(character == '-'){
-      sign = -1;
-      character = input.top();
-      input.pop();
-    }
-    if(isdigit(character)){ // read a number
-      expr.val.type = Value::Type::FIXNUM;
-      expr.val.fixnum = character - '0';
+    } else if(character == '-' || isdigit(character)){
+      long sign = 1;
+      if(character == '-'){
+        sign = -1;
+        character = input.top();
+        input.pop();
+      }
+      if(isdigit(character)){ // read a number
+        long num = character - '0';
+        while(!input.empty()){
+          character = input.top();
+          input.pop();
+          if(isdigit(character)){
+            num = num * 10 + (character - '0');
+          } else {
+            input.push(character);
+            break;
+          }
+        }
+        num *= sign;
+        expr.val = Value(num);
+      }
+    } else if(character == '"'){
+      string s = "";
+      bool success = false;
       while(!input.empty()){
         character = input.top();
         input.pop();
-        if(isdigit(character)){
-          expr.val.fixnum = expr.val.fixnum * 10 + (character - '0');
-        } else {
-          input.push(character);
+        if(character == '"'){
+          success = true;
           break;
         }
+        s.push_back(character);
       }
-      expr.val.fixnum *= sign;
+      if(!success){
+        cerr << "Error: Invalid string format\n";
+        return expr;
+      } else {
+        expr.val = Value(s.c_str());
+      }
     }
-  }
-  if(!input.empty() && !isDelimiter(input.top())){
-    cerr << "Error: Invalid character '" << input.top() << "'\n";
-    exit(-1);
+    if(!input.empty() && !isDelimiter(input.top())){
+      cerr << "Error: Invalid character '" << input.top() << "'\n";
+      return expr;
+    }
   }
 
   return expr;
@@ -115,8 +141,10 @@ void print(Value value) {
     case Value::Type::CHARACTER:{
       cout << "#\\" << value.character << "\n";
     } break;
+    case Value::Type::STRING:{
+      cout << value.str << "\n";
+    } break;
     default:{
-      assert(false && "Invalid Value type");
     } break;
   }
 }
