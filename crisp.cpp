@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <exception>
@@ -6,6 +7,7 @@
 #include <stack>
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace std;
 
@@ -22,7 +24,7 @@ class ParsingError : public exception {
 };
 
 enum class Token {
-  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, DOT
+  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, DOT, SYMBOL
 };
 
 bool isDelimiter(char c){
@@ -56,17 +58,15 @@ class Value {
       char character;
       Str str;
       Pair pair;
-      //Sym symbol;
+      Sym symbol;
     };
 
     explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
     explicit Value(bool b) : type{Type::BOOLEAN}, boolean{b} {}
     explicit Value(char c) : type{Type::CHARACTER}, character{c} {}
     explicit Value(Str s) : type{Type::STRING}, str(s) {}
-    /*
-    */
     explicit Value(Value* a, Value* d) : type{Type::PAIR}, pair{a,d} {}
-    //explicit Value(Sym s) : type{Type::SYMBOL}, symbol{s} {}
+    explicit Value(Sym s) : type{Type::SYMBOL}, symbol(s) {}
     Value() : type{Type::PAIR}, pair{nullptr,nullptr} {}
   private:
 };
@@ -81,6 +81,7 @@ class Reader {
     pair<Token, string> tryReadNumber(char first_ch);
     pair<Token, string> tryReadLiteral();
     pair<Token, string> tryReadString();
+    pair<Token, string> tryReadSymbol(char first_ch);
     Value* tryReadPair();
     Value* parse(const pair<Token, string>& token);
 };
@@ -88,6 +89,7 @@ class Reader {
 Value True{true};
 Value False{false};
 Value EmptyPair{};
+vector<Value*> Symbols;
 
 Value* Reader::read() {
   return parse(tryReadToken());
@@ -118,6 +120,23 @@ Value* Reader::parse(const pair<Token, string>& token) {
     case Token::LPAREN:{
       result = tryReadPair();
     } break;
+    case Token::SYMBOL:{
+      auto symbol_itr = find_if(begin(Symbols), end(Symbols),
+                                [&](Value* v){ 
+                                  return !strcmp(v->symbol.name,
+                                                 token.second.c_str());
+                                });
+      if(symbol_itr == end(Symbols)){
+        // add new symbol
+        Value::Sym sym;
+        sym.name = new char[token.second.size()]();
+        strcpy(sym.name, token.second.c_str());
+        Value* symbol = new Value(sym);
+        Symbols.push_back(symbol);
+        symbol_itr = Symbols.end() - 1;
+      }
+      return *symbol_itr;
+    }
     default:{
       // do nothing, result is already set appropriately
     } break;
@@ -175,6 +194,8 @@ pair<Token, string> Reader::tryReadToken() {
       return make_pair(Token::DOT, string{"."});
     }
     throw LexingError();
+  } else if(isalpha(ch) || (string{"!$%&*/:<=>?^_~"}.find(ch) != string::npos)){
+    return tryReadSymbol(ch);
   } else {
     // throw, unexpected character
     throw LexingError();
@@ -241,6 +262,24 @@ pair<Token, string> Reader::tryReadString() {
   return make_pair(Token::STRING, result);
 }
 
+pair<Token, string> Reader::tryReadSymbol(char first_ch) {
+  string result = "";
+  result.push_back(first_ch);
+  char ch;
+  while(input_stream_.get(ch)){
+    if(isDelimiter(ch)){
+      input_stream_.unget();
+      break;
+    } else if(isalnum(ch) || 
+              (string{"!$%&*/:<=>?^_~+-.@"}.find(ch) != string::npos)){
+      result.push_back(ch);
+    } else {
+      throw LexingError();
+    }
+  }
+  return make_pair(Token::SYMBOL, result);
+}
+
 void print(Value* value) {
   if(!value){
     return;
@@ -271,6 +310,9 @@ void print(Value* value) {
       }
       cout << ")";
     } break;
+    case Value::Type::SYMBOL:{
+      cout << value->symbol.name;
+    }
     default:{
     } break;
   }
