@@ -37,28 +37,36 @@ class Value {
       CHARACTER,
       STRING,
       PAIR,
+      SYMBOL
     };
     Type type;
     struct Pair{
       Value* car;
       Value* cdr;
     };
+    struct Str{
+      char* str;
+    };
+    struct Sym{
+      char* name;
+    };
     union {
       long fixnum;
       bool boolean;
       char character;
-      char* str;
+      Str str;
       Pair pair;
+      //Sym symbol;
     };
 
     explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
     explicit Value(bool b) : type{Type::BOOLEAN}, boolean{b} {}
     explicit Value(char c) : type{Type::CHARACTER}, character{c} {}
-    explicit Value(const char* s) : type{Type::STRING} {
-      str = new char[strlen(s)]();
-      strcpy(str, s);
-    }
+    explicit Value(Str s) : type{Type::STRING}, str(s) {}
+    /*
+    */
     explicit Value(Value* a, Value* d) : type{Type::PAIR}, pair{a,d} {}
+    //explicit Value(Sym s) : type{Type::SYMBOL}, symbol{s} {}
     Value() : type{Type::PAIR}, pair{nullptr,nullptr} {}
   private:
 };
@@ -102,7 +110,10 @@ Value* Reader::parse(const pair<Token, string>& token) {
       result = new Value(token.second.back());
     } break;
     case Token::STRING:{
-      result = new Value(token.second.c_str());
+      Value::Str s;
+      s.str = new char[token.second.size()]();
+      strcpy(s.str, token.second.c_str());
+      result = new Value(s);
     } break;
     case Token::LPAREN:{
       result = tryReadPair();
@@ -249,7 +260,7 @@ void print(Value* value) {
       cout << "#\\" << value->character;
     } break;
     case Value::Type::STRING:{
-      cout << value->str;
+      cout << value->str.str;
     } break;
     case Value::Type::PAIR:{
       cout << "(";
