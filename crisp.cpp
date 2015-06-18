@@ -1,26 +1,48 @@
 #include <cassert>
 #include <cctype>
+#include <exception>
 #include <iostream>
 #include <stack>
 #include <string>
 
 using namespace std;
 
+class LexingError : public exception {
+  virtual const char* what() const throw(){
+    return "Unable to lex token.";
+  }
+};
+
+class ParsingError : public exception {
+  virtual const char* what() const throw(){
+    return "Unable to parse command.";
+  }
+};
+
+enum class Token {
+  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN
+};
+
 class Value {
   public:
     enum class Type {
-      EMPTY_LIST,
       FIXNUM,
       BOOLEAN,
       CHARACTER,
       STRING,
+      PAIR,
     };
     Type type;
+    struct Pair{
+      Value* car;
+      Value* cdr;
+    };
     union {
       long fixnum;
       bool boolean;
       char character;
       char* str;
+      Pair pair;
     };
 
     explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
@@ -30,139 +52,157 @@ class Value {
       str = new char[strlen(s)]();
       strcpy(str, s);
     }
-    Value() : type{Type::EMPTY_LIST} {}
+    explicit Value(Value* a, Value* d) : type{Type::PAIR}, pair{a,d} {}
+    Value() : type{Type::PAIR}, pair{nullptr,nullptr} {}
   private:
+};
+
+class Reader {
+  public:
+    Reader(istream& input) : input_stream_{input} {}
+    pair<Token, string> tryReadToken();
+    Value* tryRead();
+  private:
+    istream& input_stream_;
+    pair<Token, string> tryReadNumber(char first_ch);
+    pair<Token, string> tryReadLiteral();
+    pair<Token, string> tryReadString();
 };
 
 Value True{true};
 Value False{false};
 Value EmptyList{};
 
-class Expression {
-  public:
-    Value val;
-  private:
-};
-
-bool isDelimiter(char x) {
-  return x == ' ' || x == EOF;
-}
-
-Expression read(stack<char> input) {
-  Expression expr;
-  if(!input.empty()){
-    char character = input.top();
-    input.pop();
-
-    if(character == '#'){ // read a boolean
-      character = input.top();
-      input.pop();
-      if(character == 't'){
-        expr.val = True;
-      } else if(character == 'f'){
-        expr.val = False;
-      } else if(character == '\\'){
-        if(input.empty()){
-          cerr << "Error: Empty character literal\n";
-          return expr;
-        }
-        character = input.top();
-        input.pop();
-        expr.val = Value(character);
+Value* Reader::tryRead() {
+  Value* result = nullptr;
+  auto token = tryReadToken();
+  switch(token.first){
+    case Token::NUMBER:{
+      result = new Value(stol(token.second));
+    } break;
+    case Token::BOOLEAN:{
+      if(token.second == "#f"){
+        result = &False;
       } else {
-        cerr << "Error: Unknown char literal '" << character << "'\n";
-        return expr;
+        result = &True;
       }
-    } else if(character == '-' || isdigit(character)){
-      long sign = 1;
-      if(character == '-'){
-        sign = -1;
-        character = input.top();
-        input.pop();
-      }
-      if(isdigit(character)){ // read a number
-        long num = character - '0';
-        while(!input.empty()){
-          character = input.top();
-          input.pop();
-          if(isdigit(character)){
-            num = num * 10 + (character - '0');
-          } else {
-            input.push(character);
-            break;
-          }
-        }
-        num *= sign;
-        expr.val = Value(num);
-      }
-    } else if(character == '"'){
-      string s = "";
-      bool success = false;
-      while(!input.empty()){
-        character = input.top();
-        input.pop();
-        if(character == '"'){
-          success = true;
-          break;
-        }
-        s.push_back(character);
-      }
-      if(!success){
-        cerr << "Error: Invalid string format\n";
-        return expr;
-      } else {
-        expr.val = Value(s.c_str());
-      }
-    } else if(character == '('){
-      bool success = false;
-      if(!input.empty()){
-        character = input.top();
-        input.pop();
-        if(character == ')'){
-          expr.val = EmptyList;
-          success = true;
-        }
-      }
-      if(!success){
-        cerr << "Error: Invalid empty list specification\n";
-        return expr;
-      }
-    } else {
-      input.push(character);
-    }
-    if(!input.empty() && !isDelimiter(input.top())){
-      cerr << "Error: Invalid character '" << input.top() << "'\n";
-      return expr;
+    } break;
+    case Token::CHARACTER:{
+      result = new Value(token.second.back());
+    } break;
+    case Token::STRING:{
+      result = new Value(token.second.c_str());
+    } break;
+    case Token::LPAREN:{
+    } break;
+    case Token::RPAREN:{
+    } break;
+    default:{
+      throw ParsingError();
     }
   }
-
-  return expr;
+  return result;
 }
 
-Value eval(Expression ast) {
-  return ast.val;
+pair<Token, string> Reader::tryReadToken() {
+  // attempt to read token, throw exception if failure
+  char ch;
+  input_stream_.get(ch);
+  if(!input_stream_){
+      // throw, unable to get a character
+  }
+  if(ch == '-' || isdigit(ch)){
+    return tryReadNumber(ch);
+  } else if(ch == '#'){
+    return tryReadLiteral();
+  } else if(ch == '"'){
+    return tryReadString();
+  } else if(ch == '('){
+    return make_pair(Token::LPAREN, string{"("});
+  } else if(ch == ')'){
+    return make_pair(Token::RPAREN, string{")"});
+  } else if(isspace(ch)){
+    return tryReadToken();
+  } else {
+    // throw, unexpected character
+    throw LexingError();
+  }
 }
 
-void print(Value value) {
-  switch(value.type){
+pair<Token, string> Reader::tryReadNumber(char first_ch) {
+  char ch;
+  string result = "";
+  result.push_back(first_ch);
+  while(input_stream_.get(ch)){
+    if(isdigit(ch)){
+      result.push_back(ch);
+    } else if(isspace(ch)){
+      break;
+    } else {
+      // throw, cant have weird symbols in a number
+      throw LexingError();
+    }
+  }
+  return make_pair(Token::NUMBER, result);
+}
+
+pair<Token, string> Reader::tryReadLiteral() {
+  char ch;
+  input_stream_.get(ch);
+  if(ch == 't'){
+    return make_pair(Token::BOOLEAN, string{"#t"});
+  } else if(ch == 'f'){
+    return make_pair(Token::BOOLEAN, string{"#f"});
+  } else if(ch == '\\'){
+    input_stream_.get(ch);
+    return make_pair(Token::CHARACTER, string{"#\\"} + ch);
+  } else {
+    // throw, invalid literal syntax
+    throw LexingError();
+  }
+}
+
+pair<Token, string> Reader::tryReadString() {
+  char ch;
+  string result = "\"";
+  while(input_stream_.get(ch)){
+    result.push_back(ch);
+    if(ch == '\"'){
+      break;
+    }
+  }
+  return make_pair(Token::STRING, result);
+}
+
+void print(Value* value) {
+  if(!value){
+    return;
+  }
+  switch(value->type){
     case Value::Type::FIXNUM:{
-      cout << value.fixnum << "\n";
+      cout << value->fixnum;
     } break;
     case Value::Type::BOOLEAN:{
-      if(value.boolean){
-        cout << "True\n";
+      if(value->boolean){
+        cout << "True";
       } else {
-        cout << "False\n";
+        cout << "False";
       }
     } break;
     case Value::Type::CHARACTER:{
-      cout << "#\\" << value.character << "\n";
+      cout << "#\\" << value->character;
     } break;
     case Value::Type::STRING:{
-      cout << value.str << "\n";
+      cout << value->str;
     } break;
-    case Value::Type::EMPTY_LIST:{
-      cout << "()\n";
+    case Value::Type::PAIR:{
+      cout << "(";
+      if(value->pair.car){
+        print(value->pair.car);
+        cout << " . ";
+        print(value->pair.cdr);
+      }
+      cout << ")";
     } break;
     default:{
     } break;
@@ -171,23 +211,13 @@ void print(Value value) {
 
 int main(int, char*[]) {
   cout << "Welcome to Crisp. Use ctrl-c to exit.\n";
+  Reader reader(cin);
 
   while(true){
     cout << "crisp> ";
-    string line;
-    getline(cin, line);
-    if(cin.eof()){
-      cout << "\nShutting down\n";
-      return 0;
-    }
-    stack<char> input;
-    for(auto x = line.rbegin(); x != line.rend(); ++x){
-      input.push(*x);
-    }
-    auto ast = read(input);
-    auto res = eval(ast);
-    print(res);
+    auto val = reader.tryRead();
+    print(val);
+    cout << endl;
   }
-  assert(false && "Should never reach here");
   return 0;
 }
