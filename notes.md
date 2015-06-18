@@ -4,6 +4,7 @@
 # Read
 - add special characters #\newline and #\space
 - add escaped characters to strings
+- add white space parsing
 
 # Evaluate
 

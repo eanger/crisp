@@ -9,7 +9,7 @@ using namespace std;
 class Value {
   public:
     enum class Type {
-      EMPTY,
+      EMPTY_LIST,
       FIXNUM,
       BOOLEAN,
       CHARACTER,
@@ -30,12 +30,13 @@ class Value {
       str = new char[strlen(s)]();
       strcpy(str, s);
     }
-    Value() : type{Type::EMPTY} {}
+    Value() : type{Type::EMPTY_LIST} {}
   private:
 };
 
-Value True(true);
-Value False(false);
+Value True{true};
+Value False{false};
+Value EmptyList{};
 
 class Expression {
   public:
@@ -44,7 +45,7 @@ class Expression {
 };
 
 bool isDelimiter(char x) {
-  return x == ' ';
+  return x == ' ' || x == EOF;
 }
 
 Expression read(stack<char> input) {
@@ -112,6 +113,22 @@ Expression read(stack<char> input) {
       } else {
         expr.val = Value(s.c_str());
       }
+    } else if(character == '('){
+      bool success = false;
+      if(!input.empty()){
+        character = input.top();
+        input.pop();
+        if(character == ')'){
+          expr.val = EmptyList;
+          success = true;
+        }
+      }
+      if(!success){
+        cerr << "Error: Invalid empty list specification\n";
+        return expr;
+      }
+    } else {
+      input.push(character);
     }
     if(!input.empty() && !isDelimiter(input.top())){
       cerr << "Error: Invalid character '" << input.top() << "'\n";
@@ -144,6 +161,9 @@ void print(Value value) {
     case Value::Type::STRING:{
       cout << value.str << "\n";
     } break;
+    case Value::Type::EMPTY_LIST:{
+      cout << "()\n";
+    } break;
     default:{
     } break;
   }
@@ -156,6 +176,10 @@ int main(int, char*[]) {
     cout << "crisp> ";
     string line;
     getline(cin, line);
+    if(cin.eof()){
+      cout << "\nShutting down\n";
+      return 0;
+    }
     stack<char> input;
     for(auto x = line.rbegin(); x != line.rend(); ++x){
       input.push(*x);
