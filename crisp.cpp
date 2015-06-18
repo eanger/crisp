@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stack>
 #include <string>
+#include <utility>
 
 using namespace std;
 
@@ -20,8 +21,12 @@ class ParsingError : public exception {
 };
 
 enum class Token {
-  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN
+  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, DOT
 };
+
+bool isDelimiter(char c){
+  return isspace(c) || (string{"()[]\";#"}.find(c) != string::npos);
+}
 
 class Value {
   public:
@@ -67,6 +72,7 @@ class Reader {
     pair<Token, string> tryReadNumber(char first_ch);
     pair<Token, string> tryReadLiteral();
     pair<Token, string> tryReadString();
+    Value* tryReadPair();
 };
 
 Value True{true};
@@ -94,14 +100,35 @@ Value* Reader::tryRead() {
       result = new Value(token.second.c_str());
     } break;
     case Token::LPAREN:{
+      result = tryReadPair();
     } break;
-    case Token::RPAREN:{
+    case Token::RPAREN:{ 
+      result = &EmptyList;
     } break;
     default:{
       throw ParsingError();
     }
   }
   return result;
+}
+
+Value* Reader::tryReadPair() {
+  Value* first = tryRead();
+  if(first == nullptr){
+    throw ParsingError();
+  }
+  if(first == &EmptyList){
+    return first;
+  }
+  auto dot = tryReadToken();
+  if(dot.first != Token::DOT){
+    throw ParsingError();
+  }
+  Value* second = tryRead();
+  if(second == nullptr){
+    throw ParsingError();
+  }
+  return new Value{first, second};
 }
 
 pair<Token, string> Reader::tryReadToken() {
@@ -123,6 +150,8 @@ pair<Token, string> Reader::tryReadToken() {
     return make_pair(Token::RPAREN, string{")"});
   } else if(isspace(ch)){
     return tryReadToken();
+  } else if(ch == '.'){
+    return make_pair(Token::DOT, string{"."});
   } else {
     // throw, unexpected character
     throw LexingError();
@@ -136,7 +165,8 @@ pair<Token, string> Reader::tryReadNumber(char first_ch) {
   while(input_stream_.get(ch)){
     if(isdigit(ch)){
       result.push_back(ch);
-    } else if(isspace(ch)){
+    } else if(isDelimiter(ch)){
+      input_stream_.unget();
       break;
     } else {
       // throw, cant have weird symbols in a number
@@ -150,12 +180,23 @@ pair<Token, string> Reader::tryReadLiteral() {
   char ch;
   input_stream_.get(ch);
   if(ch == 't'){
-    return make_pair(Token::BOOLEAN, string{"#t"});
+    input_stream_.get(ch);
+    if(isDelimiter(input_stream_.peek())){
+      return make_pair(Token::BOOLEAN, string{"#t"});
+    }
+    throw LexingError();
   } else if(ch == 'f'){
-    return make_pair(Token::BOOLEAN, string{"#f"});
+    if(isDelimiter(input_stream_.peek())){
+      input_stream_.unget();
+      return make_pair(Token::BOOLEAN, string{"#f"});
+    }
+    throw LexingError();
   } else if(ch == '\\'){
     input_stream_.get(ch);
-    return make_pair(Token::CHARACTER, string{"#\\"} + ch);
+    if(isDelimiter(input_stream_.peek())){
+      return make_pair(Token::CHARACTER, string{"#\\"} + ch);
+    }
+    throw LexingError();
   } else {
     // throw, invalid literal syntax
     throw LexingError();
@@ -168,7 +209,10 @@ pair<Token, string> Reader::tryReadString() {
   while(input_stream_.get(ch)){
     result.push_back(ch);
     if(ch == '\"'){
-      break;
+      if(isDelimiter(input_stream_.peek())){
+        break;
+      }
+      throw LexingError();
     }
   }
   return make_pair(Token::STRING, result);
