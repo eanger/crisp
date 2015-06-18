@@ -2,6 +2,7 @@
 #include <cctype>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <stack>
 #include <string>
 #include <utility>
@@ -66,22 +67,26 @@ class Reader {
   public:
     Reader(istream& input) : input_stream_{input} {}
     pair<Token, string> tryReadToken();
-    Value* tryRead();
+    Value* read();
   private:
     istream& input_stream_;
     pair<Token, string> tryReadNumber(char first_ch);
     pair<Token, string> tryReadLiteral();
     pair<Token, string> tryReadString();
     Value* tryReadPair();
+    Value* parse(const pair<Token, string>& token);
 };
 
 Value True{true};
 Value False{false};
-Value EmptyList{};
+Value EmptyPair{};
 
-Value* Reader::tryRead() {
+Value* Reader::read() {
+  return parse(tryReadToken());
+}
+
+Value* Reader::parse(const pair<Token, string>& token) {
   Value* result = nullptr;
-  auto token = tryReadToken();
   switch(token.first){
     case Token::NUMBER:{
       result = new Value(stol(token.second));
@@ -102,30 +107,37 @@ Value* Reader::tryRead() {
     case Token::LPAREN:{
       result = tryReadPair();
     } break;
-    case Token::RPAREN:{ 
-      result = &EmptyList;
-    } break;
     default:{
-      throw ParsingError();
-    }
+      // do nothing, result is already set appropriately
+    } break;
   }
   return result;
 }
 
 Value* Reader::tryReadPair() {
-  Value* first = tryRead();
+  auto token = tryReadToken();
+  if(token.first  == Token::RPAREN){
+    return &EmptyPair;
+  }
+  Value* first = parse(token);
   if(first == nullptr){
     throw ParsingError();
   }
-  if(first == &EmptyList){
-    return first;
-  }
   auto dot = tryReadToken();
+  // must be a dot
   if(dot.first != Token::DOT){
     throw ParsingError();
   }
-  Value* second = tryRead();
-  if(second == nullptr){
+  token = tryReadToken();
+  // second can't be an end-paren
+  if(token.first == Token::RPAREN){
+    throw ParsingError();
+  }
+  Value* second = parse(token);
+
+  auto rparen = tryReadToken();
+  // must end in an rparen
+  if(rparen.first != Token::RPAREN){
     throw ParsingError();
   }
   return new Value{first, second};
@@ -135,9 +147,6 @@ pair<Token, string> Reader::tryReadToken() {
   // attempt to read token, throw exception if failure
   char ch;
   input_stream_.get(ch);
-  if(!input_stream_){
-      // throw, unable to get a character
-  }
   if(ch == '-' || isdigit(ch)){
     return tryReadNumber(ch);
   } else if(ch == '#'){
@@ -151,7 +160,10 @@ pair<Token, string> Reader::tryReadToken() {
   } else if(isspace(ch)){
     return tryReadToken();
   } else if(ch == '.'){
-    return make_pair(Token::DOT, string{"."});
+    if(isDelimiter(input_stream_.peek())){
+      return make_pair(Token::DOT, string{"."});
+    }
+    throw LexingError();
   } else {
     // throw, unexpected character
     throw LexingError();
@@ -259,8 +271,14 @@ int main(int, char*[]) {
 
   while(true){
     cout << "crisp> ";
-    auto val = reader.tryRead();
-    print(val);
+    try{
+      auto val = reader.read();
+      print(val);
+    } catch(const exception& e){
+      cout << e.what();
+      cin.clear();
+      cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
     cout << endl;
   }
   return 0;
