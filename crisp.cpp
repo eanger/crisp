@@ -6,6 +6,7 @@
 #include <limits>
 #include <stack>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -20,6 +21,12 @@ class LexingError : public exception {
 class ParsingError : public exception {
   virtual const char* what() const throw(){
     return "Unable to parse command.";
+  }
+};
+
+class EvaluationError: public exception {
+  virtual const char* what() const throw(){
+    return "Unable to evaluate command.";
   }
 };
 
@@ -91,6 +98,9 @@ Value False{false};
 Value EmptyPair{};
 vector<Value*> Symbols;
 Value* Quote;
+Value* Define;
+Value* Set;
+unordered_map<Value*, Value*> Environment;
 
 Value* Reader::read() {
   return parse(tryReadToken());
@@ -290,7 +300,34 @@ class Evaluator {
     Evaluator() {}
     Value* eval(Value* input);
   private:
+    Value* evalDefine(Value* input);
+    Value* evalSet(Value* input);
+    Value* evalSymbol(Value* symbol);
 };
+
+Value* Evaluator::evalDefine(Value* input) {
+  Environment[input->pair.car] = eval(input->pair.cdr);
+  // MUST return null, since define has no printed result
+  return nullptr;
+}
+
+Value* Evaluator::evalSet(Value* input) {
+  if(Environment.find(input->pair.car) == end(Environment)){
+    throw EvaluationError();
+  }
+  // technically still returns null, since set! has no printed result
+  return evalDefine(input);
+}
+
+Value* Evaluator::evalSymbol(Value* symbol) {
+  // should return the value this symbol was bound to
+
+  auto binding_it = Environment.find(symbol);
+  if(binding_it == end(Environment)){
+    throw EvaluationError();
+  }
+  return eval(binding_it->second);
+}
 
 Value* Evaluator::eval(Value* input) {
   switch(input->type){
@@ -304,10 +341,16 @@ Value* Evaluator::eval(Value* input) {
       if(input->pair.car == Quote){
         return input->pair.cdr;
       }
+      if(input->pair.car == Define){
+        return evalDefine(input->pair.cdr);
+      }
+      if(input->pair.car == Set){
+        return evalSet(input->pair.cdr);
+      }
       return nullptr;
     } break;
     case Value::Type::SYMBOL:{
-      return nullptr;
+      return evalSymbol(input);
     } break;
   }
 }
@@ -353,6 +396,8 @@ int main(int, char*[]) {
   Reader reader(cin);
   Evaluator evaluator;
   Quote = getOrCreateSymbol("quote");
+  Define = getOrCreateSymbol("define");
+  Set = getOrCreateSymbol("set!");
 
   while(true){
     cout << "crisp> ";
