@@ -227,14 +227,12 @@ pair<Token, string> Reader::tryReadLiteral() {
   char ch;
   input_stream_.get(ch);
   if(ch == 't'){
-    input_stream_.get(ch);
     if(isDelimiter(input_stream_.peek())){
       return make_pair(Token::BOOLEAN, string{"#t"});
     }
     throw LexingError();
   } else if(ch == 'f'){
     if(isDelimiter(input_stream_.peek())){
-      input_stream_.unget();
       return make_pair(Token::BOOLEAN, string{"#f"});
     }
     throw LexingError();
