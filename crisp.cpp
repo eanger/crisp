@@ -280,6 +280,17 @@ pair<Token, string> Reader::tryReadSymbol(char first_ch) {
   return make_pair(Token::SYMBOL, result);
 }
 
+class Evaluator {
+  public:
+    Evaluator() {}
+    Value* eval(Value* input);
+  private:
+};
+
+Value* Evaluator::eval(Value* input) {
+  return input;
+}
+
 void print(Value* value) {
   if(!value){
     return;
@@ -321,12 +332,14 @@ void print(Value* value) {
 int main(int, char*[]) {
   cout << "Welcome to Crisp. Use ctrl-c to exit.\n";
   Reader reader(cin);
+  Evaluator evaluator;
 
   while(true){
     cout << "crisp> ";
     try{
       auto val = reader.read();
-      print(val);
+      auto res = evaluator.eval(val);
+      print(res);
     } catch(const exception& e){
       cout << e.what();
       cin.clear();
