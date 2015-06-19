@@ -90,9 +90,27 @@ Value True{true};
 Value False{false};
 Value EmptyPair{};
 vector<Value*> Symbols;
+Value* Quote;
 
 Value* Reader::read() {
   return parse(tryReadToken());
+}
+
+Value* getOrCreateSymbol(const string& name) {
+  auto symbol_itr = find_if(begin(Symbols), end(Symbols),
+                            [&](Value* v){ 
+                              return !strcmp(v->symbol.name, name.c_str());
+                            });
+  if(symbol_itr == end(Symbols)){
+    // add new symbol
+    Value::Sym sym;
+    sym.name = new char[name.size()]();
+    strcpy(sym.name, name.c_str());
+    Value* symbol = new Value(sym);
+    Symbols.push_back(symbol);
+    symbol_itr = Symbols.end() - 1;
+  }
+  return *symbol_itr;
 }
 
 Value* Reader::parse(const pair<Token, string>& token) {
@@ -121,21 +139,7 @@ Value* Reader::parse(const pair<Token, string>& token) {
       result = tryReadPair();
     } break;
     case Token::SYMBOL:{
-      auto symbol_itr = find_if(begin(Symbols), end(Symbols),
-                                [&](Value* v){ 
-                                  return !strcmp(v->symbol.name,
-                                                 token.second.c_str());
-                                });
-      if(symbol_itr == end(Symbols)){
-        // add new symbol
-        Value::Sym sym;
-        sym.name = new char[token.second.size()]();
-        strcpy(sym.name, token.second.c_str());
-        Value* symbol = new Value(sym);
-        Symbols.push_back(symbol);
-        symbol_itr = Symbols.end() - 1;
-      }
-      return *symbol_itr;
+      return getOrCreateSymbol(token.second);
     } break;
     case Token::RPAREN:{
       // do nothing, return nullptr
@@ -297,6 +301,9 @@ Value* Evaluator::eval(Value* input) {
       return input;
     } break;
     case Value::Type::PAIR:{
+      if(input->pair.car == Quote){
+        return input->pair.cdr;
+      }
       return nullptr;
     } break;
     case Value::Type::SYMBOL:{
@@ -345,6 +352,7 @@ int main(int, char*[]) {
   cout << "Welcome to Crisp. Use ctrl-c to exit.\n";
   Reader reader(cin);
   Evaluator evaluator;
+  Quote = getOrCreateSymbol("quote");
 
   while(true){
     cout << "crisp> ";
