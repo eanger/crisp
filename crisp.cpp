@@ -136,9 +136,12 @@ Value* Reader::parse(const pair<Token, string>& token) {
         symbol_itr = Symbols.end() - 1;
       }
       return *symbol_itr;
-    }
-    default:{
-      // do nothing, result is already set appropriately
+    } break;
+    case Token::RPAREN:{
+      // do nothing, return nullptr
+    } break;
+    case Token::DOT:{
+      // do nothing, return nullptr
     } break;
   }
   return result;
@@ -323,8 +326,6 @@ void print(Value* value) {
     } break;
     case Value::Type::SYMBOL:{
       cout << value->symbol.name;
-    }
-    default:{
     } break;
   }
 }
