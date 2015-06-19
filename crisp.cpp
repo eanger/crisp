@@ -100,6 +100,7 @@ vector<Value*> Symbols;
 Value* Quote;
 Value* Define;
 Value* Set;
+Value* If;
 unordered_map<Value*, Value*> Environment;
 
 Value* Reader::read() {
@@ -303,6 +304,7 @@ class Evaluator {
     Value* evalDefine(Value* input);
     Value* evalSet(Value* input);
     Value* evalSymbol(Value* symbol);
+    Value* evalIf(Value* input);
 };
 
 Value* Evaluator::evalDefine(Value* input) {
@@ -329,6 +331,14 @@ Value* Evaluator::evalSymbol(Value* symbol) {
   return eval(binding_it->second);
 }
 
+Value* Evaluator::evalIf(Value* input) {
+  if(input->pair.car != &False){
+    return eval(input->pair.cdr->pair.car);
+  } else {
+    return eval(input->pair.cdr->pair.cdr);
+  }
+}
+
 Value* Evaluator::eval(Value* input) {
   switch(input->type){
     case Value::Type::FIXNUM:
@@ -338,6 +348,9 @@ Value* Evaluator::eval(Value* input) {
       return input;
     } break;
     case Value::Type::PAIR:{
+      if(input == &EmptyPair){
+        return input;
+      }
       if(input->pair.car == Quote){
         return input->pair.cdr;
       }
@@ -346,6 +359,9 @@ Value* Evaluator::eval(Value* input) {
       }
       if(input->pair.car == Set){
         return evalSet(input->pair.cdr);
+      }
+      if(input->pair.car == If){
+        return evalIf(input->pair.cdr);
       }
       return nullptr;
     } break;
@@ -398,6 +414,7 @@ int main(int, char*[]) {
   Quote = getOrCreateSymbol("quote");
   Define = getOrCreateSymbol("define");
   Set = getOrCreateSymbol("set!");
+  If = getOrCreateSymbol("if");
 
   while(true){
     cout << "crisp> ";
