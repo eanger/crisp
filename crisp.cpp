@@ -49,10 +49,6 @@ class Value {
       SYMBOL
     };
     Type type;
-    struct Pair{
-      Value* car;
-      Value* cdr;
-    };
     struct Str{
       char* str;
     };
@@ -64,7 +60,10 @@ class Value {
       bool boolean;
       char character;
       Str str;
-      Pair pair;
+      struct {
+        Value* car;
+        Value* cdr;
+      };
       Sym symbol;
     };
 
@@ -72,9 +71,9 @@ class Value {
     explicit Value(bool b) : type{Type::BOOLEAN}, boolean{b} {}
     explicit Value(char c) : type{Type::CHARACTER}, character{c} {}
     explicit Value(Str s) : type{Type::STRING}, str(s) {}
-    explicit Value(Value* a, Value* d) : type{Type::PAIR}, pair{a,d} {}
+    explicit Value(Value* a, Value* d) : type{Type::PAIR}, car{a}, cdr{d} {}
     explicit Value(Sym s) : type{Type::SYMBOL}, symbol(s) {}
-    Value() : type{Type::PAIR}, pair{nullptr,nullptr} {}
+    Value() : type{Type::PAIR} {}
   private:
 };
 
@@ -308,13 +307,13 @@ class Evaluator {
 };
 
 Value* Evaluator::evalDefine(Value* input) {
-  Environment[input->pair.car] = eval(input->pair.cdr);
+  Environment[input->car] = eval(input->cdr);
   // MUST return null, since define has no printed result
   return nullptr;
 }
 
 Value* Evaluator::evalSet(Value* input) {
-  if(Environment.find(input->pair.car) == end(Environment)){
+  if(Environment.find(input->car) == end(Environment)){
     throw EvaluationError();
   }
   // technically still returns null, since set! has no printed result
@@ -332,10 +331,10 @@ Value* Evaluator::evalSymbol(Value* symbol) {
 }
 
 Value* Evaluator::evalIf(Value* input) {
-  if(input->pair.car != &False){
-    return eval(input->pair.cdr->pair.car);
+  if(input->car != &False){
+    return eval(input->cdr->car);
   } else {
-    return eval(input->pair.cdr->pair.cdr);
+    return eval(input->cdr->cdr);
   }
 }
 
@@ -351,17 +350,17 @@ Value* Evaluator::eval(Value* input) {
       if(input == &EmptyPair){
         return input;
       }
-      if(input->pair.car == Quote){
-        return input->pair.cdr;
+      if(input->car == Quote){
+        return input->cdr;
       }
-      if(input->pair.car == Define){
-        return evalDefine(input->pair.cdr);
+      if(input->car == Define){
+        return evalDefine(input->cdr);
       }
-      if(input->pair.car == Set){
-        return evalSet(input->pair.cdr);
+      if(input->car == Set){
+        return evalSet(input->cdr);
       }
-      if(input->pair.car == If){
-        return evalIf(input->pair.cdr);
+      if(input->car == If){
+        return evalIf(input->cdr);
       }
       return nullptr;
     } break;
@@ -394,10 +393,10 @@ void print(Value* value) {
     } break;
     case Value::Type::PAIR:{
       cout << "(";
-      if(value->pair.car){
-        print(value->pair.car);
+      if(value->car){
+        print(value->car);
         cout << " . ";
-        print(value->pair.cdr);
+        print(value->cdr);
       }
       cout << ")";
     } break;
