@@ -289,7 +289,20 @@ class Evaluator {
 };
 
 Value* Evaluator::eval(Value* input) {
-  return input;
+  switch(input->type){
+    case Value::Type::FIXNUM:
+    case Value::Type::BOOLEAN:
+    case Value::Type::CHARACTER:
+    case Value::Type::STRING:{
+      return input;
+    } break;
+    case Value::Type::PAIR:{
+      return nullptr;
+    } break;
+    case Value::Type::SYMBOL:{
+      return nullptr;
+    } break;
+  }
 }
 
 void print(Value* value) {
