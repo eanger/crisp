@@ -1,5 +1,7 @@
 #include <unordered_map>
+#include <vector>
 
+#include "value.hpp"
 #include "eval.hpp"
 
 using namespace std;
@@ -7,42 +9,93 @@ using namespace std;
 namespace crisp{
 namespace { // unnamed namespace
 
-unordered_map<Value*, Value*> Global_Environment;
+struct Environment;
+struct Binding{
+  using SpecialForm = Value*(*)(Value*, Environment*);
+  enum class Type{
+    VARIABLE, SPECIALFORM
+  };
+  Type type;
+  union{ 
+    Value* variable;
+    SpecialForm special_form;
+  };
+  explicit Binding(Value* v) : type{Type::VARIABLE}, variable{v} {}
+  explicit Binding(SpecialForm f) : type{Type::SPECIALFORM}, special_form{f} {}
+  explicit Binding() {}
+};
 
-Value* evalDefine(Value* input) {
-  Global_Environment[input->car] = eval(input->cdr);
+struct Environment{
+  unordered_map<Value*, Binding> bindings;
+  Environment* parent;
+
+  Binding* getBinding(Value* value);
+  void setBinding(Value* key, Binding binding);
+  Environment() : bindings{}, parent{nullptr} {}
+};
+
+Binding* Environment::getBinding(Value* value) {
+  auto bdg = bindings.find(value);
+  if(bdg != end(bindings)){
+    return &bdg->second;
+  } else{
+    if(parent){
+      return parent->getBinding(value);
+    } else {
+      return nullptr;
+    }
+  }
+}
+
+void Environment::setBinding(Value* key, Binding binding) {
+  bindings[key] = binding;
+}
+
+Environment GlobalEnvironment;
+
+Value* doEval(Value* input, Environment* envt);
+
+Value* evalQuote(Value* input, Environment*) {
+  return input;
+};
+
+Value* evalDefine(Value* input, Environment* envt) {
+  envt->setBinding(input->car, Binding(doEval(input->cdr, envt)));
   // MUST return null, since define has no printed result
   return nullptr;
 }
 
-Value* evalSet(Value* input) {
-  if(Global_Environment.find(input->car) == end(Global_Environment)){
+Value* evalSet(Value* input, Environment* envt) {
+  auto bdg = envt->getBinding(input->car);
+  if(!bdg){
     throw EvaluationError("Cannot set undefined symbol");
   }
-  // technically still returns null, since set! has no printed result
-  return evalDefine(input);
+  // returns null, since set! has no printed result
+  return evalDefine(input, envt);
 }
 
-Value* evalSymbol(Value* symbol) {
+Value* evalSymbol(Value* symbol, Environment* envt) {
   // should return the value this symbol was bound to
-
-  auto binding_it = Global_Environment.find(symbol);
-  if(binding_it == end(Global_Environment)){
+  auto bdg = envt->getBinding(symbol);
+  if(!bdg){
     throw EvaluationError("Cannot evaluate undefined symbol");
   }
-  return eval(binding_it->second);
-}
-
-Value* evalIf(Value* input) {
-  if(input->car != &False){
-    return eval(input->cdr->car);
+  if(bdg->type == Binding::Type::VARIABLE){
+    return bdg->variable;
   } else {
-    return eval(input->cdr->cdr);
+    throw EvaluationError("Non-variable name referenced as a variable");
   }
 }
-} // end unnamed namespace
 
-Value* eval(Value* input) {
+Value* evalIf(Value* input, Environment* envt) {
+  if(doEval(input->car,envt) != &False){
+    return doEval(input->cdr->car, envt);
+  } else {
+    return doEval(input->cdr->cdr, envt);
+  }
+}
+
+Value* doEval(Value* input, Environment* envt) {
   if(!input){
     throw EvaluationError("Cannot evaluate null Value");
   }
@@ -56,26 +109,45 @@ Value* eval(Value* input) {
     case Value::Type::PAIR:{
       if(input == &EmptyPair){
         return input;
+      } else if(input->car->type == Value::Type::SYMBOL){
+        auto binding = envt->getBinding(input->car);
+        switch(binding->type){
+          case Binding::Type::VARIABLE:{
+            Value val(doEval(input->car, envt), input->cdr);
+            return doEval(&val, envt);
+          } break;
+          case Binding::Type::SPECIALFORM:{
+            return binding->special_form(input->cdr, envt);
+          } break;
+        }
+      } else if(input->car->type == Value::Type::PAIR){
+        // evaluate the car, and use its result to evaluate the cdr
+        Value val(doEval(input->car, envt), input->cdr);
+        return doEval(&val, envt);
+      } else {
+        throw EvaluationError("Cannot evaluate a pair with non-symbol, non-pair car");
       }
-      if(input->car == Quote){
-        return input->cdr;
-      }
-      if(input->car == Define){
-        return evalDefine(input->cdr);
-      }
-      if(input->car == Set){
-        return evalSet(input->cdr);
-      }
-      if(input->car == If){
-        return evalIf(input->cdr);
-      }
-      return nullptr;
     } break;
     case Value::Type::SYMBOL:{
-      return evalSymbol(input);
+      return evalSymbol(input, envt);
     } break;
   }
 }
+} // end unnamed namespace
 
+void initEval() {
+  Quote = getInternedSymbol("quote");
+  GlobalEnvironment.setBinding(Quote, Binding(evalQuote));
+  Define = getInternedSymbol("define");
+  GlobalEnvironment.setBinding(Define, Binding(evalDefine));
+  Set = getInternedSymbol("set!");
+  GlobalEnvironment.setBinding(Set, Binding(evalSet));
+  If = getInternedSymbol("if");
+  GlobalEnvironment.setBinding(If, Binding(evalIf));
+}
+
+Value* eval(Value* input) {
+  return doEval(input, &GlobalEnvironment);
+}
 }
 

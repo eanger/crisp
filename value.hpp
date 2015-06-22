@@ -45,6 +45,7 @@ class Value {
 };
 
 Value* getInternedSymbol(const std::string& name);
+void print(Value* val);
 
 extern Value True;
 extern Value False;

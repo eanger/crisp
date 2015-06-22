@@ -5,6 +5,7 @@
 
 namespace crisp{
 /***** API        *****/
+void initEval();
 Value* eval(Value* input);
 
 /***** Exceptions *****/
