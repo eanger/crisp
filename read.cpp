@@ -218,21 +218,5 @@ Value* read(istream& input_stream) {
   return parse(input_stream, tryReadToken(input_stream));
 }
 
-
-/***** Exceptions *****/
-LexingError::LexingError(const char* problem) {
-  const char* prefix = "Lexing error. Reason: ";
-  message_ = new char[strlen(prefix) + strlen(problem)]();
-  strcpy(message_, prefix);
-  strcat(message_, problem);
-}
-
-ParsingError::ParsingError(const char* problem) {
-  const char* prefix = "Parsing error. Reason: ";
-  message_ = new char[strlen(prefix) + strlen(problem)]();
-  strcpy(message_, prefix);
-  strcat(message_, problem);
-}
-
 }
 
