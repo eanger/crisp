@@ -1,7 +1,7 @@
 #pragma once
-#include <exception>
 
 #include "value.hpp"
+#include "exception.hpp"
 
 namespace crisp{
 
@@ -9,26 +9,14 @@ namespace crisp{
 Value* read(std::istream& input_stream);
 
 /***** Exceptions *****/
-class LexingError : public std::exception {
+class LexingError : public VerboseError {
   public:
-    virtual const char* what() const throw(){
-      return message_;
-    }
-
-    LexingError(const char* problem);
-  private:
-    char* message_;
+    LexingError(const char* problem) : VerboseError("Lexing error: ", problem) {}
 };
 
-class ParsingError : public std::exception {
+class ParsingError : public VerboseError {
   public:
-    virtual const char* what() const throw(){
-      return message_;
-    }
-
-    ParsingError(const char* problem);
-  private:
-    char* message_;
+    ParsingError(const char* problem) : VerboseError("Parsing error: ", problem) {}
 };
 
 }
