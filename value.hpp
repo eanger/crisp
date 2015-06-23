@@ -4,6 +4,10 @@
 
 namespace crisp{
 
+struct Environment;
+class Value;
+
+using PrimitiveProcedure = Value*(*)(Value* args);
 class Value {
   public:
     enum class Type {
@@ -12,7 +16,8 @@ class Value {
       CHARACTER,
       STRING,
       PAIR,
-      SYMBOL
+      SYMBOL,
+      PRIMITIVE_PROCEDURE
     };
     Type type;
     struct Str{
@@ -27,11 +32,13 @@ class Value {
       bool boolean;
       char character;
       Str str;
-      struct {
+      struct { // for pair
         Value* car;
         Value* cdr;
       };
       Sym symbol;
+      PrimitiveProcedure proc; // for primitive proc
+      //Value* body; // for proc
     };
 
     explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
@@ -40,12 +47,15 @@ class Value {
     explicit Value(Str s) : type{Type::STRING}, str(s) {}
     explicit Value(Value* a, Value* d) : type{Type::PAIR}, car{a}, cdr{d} {}
     explicit Value(Sym s) : type{Type::SYMBOL}, symbol(s) {}
+    explicit Value(PrimitiveProcedure p)
+        : type{Type::PRIMITIVE_PROCEDURE}, proc{p} {}
     Value() : type{Type::PAIR} {}
   private:
 };
 
 Value* getInternedSymbol(const std::string& name);
 void print(Value* val);
+Value* reverse(Value* list);
 
 extern Value True;
 extern Value False;

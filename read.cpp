@@ -61,12 +61,7 @@ Value* readList(istream& input_stream, Value* list_so_far) {
     Value* new_list = new Value(v, list_so_far);
     return readList(input_stream, new_list);
   } else {
-    // TODO: reverse this list
-    Value* result_list = EmptyList;
-    for(Value* ptr = list_so_far; ptr != nullptr; ptr = ptr->cdr){
-      result_list = new Value(ptr->car, result_list);
-    }
-    return result_list;
+    return reverse(list_so_far);
   }
 }
 

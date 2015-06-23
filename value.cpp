@@ -73,7 +73,18 @@ void print(Value* value) {
     case Value::Type::SYMBOL:{
       cout << value->symbol.name;
     } break;
+    case Value::Type::PRIMITIVE_PROCEDURE:{
+      cout << "#<procedure>";
+    } break;
   }
+}
+
+Value* reverse(Value* list) {
+  Value* result_list = EmptyList;
+  for(Value* ptr = list; ptr != nullptr; ptr = ptr->cdr){
+    result_list = new Value(ptr->car, result_list);
+  }
+  return result_list;
 }
 
 Value True{true};

@@ -119,17 +119,38 @@ Value* doEval(Value* input, Environment* envt) {
           } break;
         }
       } else if(input->car->type == Value::Type::PAIR){
-        // evaluate the car, and use its result to evaluate the cdr
-        Value val(doEval(input->car, envt), input->cdr);
-        return doEval(&val, envt);
+        return doEval(new Value(doEval(input->car, envt), input->cdr), envt);
+      } else if(input->car->type == Value::Type::PRIMITIVE_PROCEDURE){
+        // TODO: eval the combo (ie apply?)
+        Value* proc = input->car;
+        Value* args = input->cdr;
+
+        Value* eval_args = nullptr;
+        for(Value* arg = args; arg != nullptr; arg = arg->cdr){
+          Value* res = doEval(arg->car, envt);
+          eval_args = new Value(res, eval_args);
+        }
+        eval_args = reverse(eval_args);
+        return proc->proc(eval_args);
       } else {
-        throw EvaluationError("Cannot evaluate a pair with non-symbol, non-pair car");
+        throw EvaluationError("Cannot evaluate a pair that doesn't start with a pair, symbol, or procedure.");
       }
     } break;
     case Value::Type::SYMBOL:{
       return evalSymbol(input, envt);
     } break;
+    case Value::Type::PRIMITIVE_PROCEDURE:{
+      throw EvaluationError("Trying to evaluate a procedure that's not in a list.");
+    } break;
   }
+}
+
+Value* addproc(Value* operands){
+  long res = 0;
+  for(Value* operand = operands; operand != nullptr; operand = operand->cdr){
+    res += operand->car->fixnum;
+  }
+  return new Value(res);
 }
 } // end unnamed namespace
 
@@ -139,6 +160,8 @@ void initEval() {
   GlobalEnvironment.setBinding(getInternedSymbol("set!"), Binding(evalSet));
   GlobalEnvironment.setBinding(getInternedSymbol("if"), Binding(evalIf));
   GlobalEnvironment.setBinding(getInternedSymbol("let"), Binding(evalLet));
+  Value* add_proc = new Value(addproc);
+  GlobalEnvironment.setBinding(getInternedSymbol("add"), Binding(add_proc));
 }
 
 Value* eval(Value* input) {
