@@ -5,7 +5,6 @@
 #include "value.hpp"
 
 namespace crisp{
-namespace{
 
 struct Environment;
 
@@ -32,6 +31,8 @@ struct Environment{
   void setBinding(Value* key, Binding binding);
   Environment() : bindings{}, parent{nullptr} {}
 };
+
+namespace{
 
 Value* doEval(Value* input, Environment* envt);
 Value* evalQuote(Value* input, Environment*);

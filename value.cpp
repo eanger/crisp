@@ -73,6 +73,7 @@ void print(Value* value) {
     case Value::Type::SYMBOL:{
       cout << value->symbol.name;
     } break;
+    case Value::Type::PROCEDURE:
     case Value::Type::PRIMITIVE_PROCEDURE:{
       cout << "#<procedure>";
     } break;

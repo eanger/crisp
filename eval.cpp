@@ -1,3 +1,5 @@
+#include <cassert>
+#include <iostream>
 #include <unordered_map>
 #include <vector>
 
@@ -8,7 +10,6 @@
 using namespace std;
 
 namespace crisp{
-namespace { // unnamed namespace
 
 Binding* Environment::getBinding(Value* value) {
   auto bdg = bindings.find(value);
@@ -27,6 +28,7 @@ void Environment::setBinding(Value* key, Binding binding) {
   bindings[key] = binding;
 }
 
+namespace { // unnamed namespace
 Environment GlobalEnvironment;
 
 Value* evalQuote(Value* input, Environment*) {
@@ -93,6 +95,10 @@ Value* evalLet(Value* input, Environment* envt) {
   return res;
 }
 
+Value* evalLambda(Value* input, Environment* envt) {
+  return new Value(input->car, envt, input->cdr);
+}
+
 Value* doEval(Value* input, Environment* envt) {
   if(!input){
     throw EvaluationError("Cannot evaluate null Value");
@@ -120,18 +126,34 @@ Value* doEval(Value* input, Environment* envt) {
         }
       } else if(input->car->type == Value::Type::PAIR){
         return doEval(new Value(doEval(input->car, envt), input->cdr), envt);
-      } else if(input->car->type == Value::Type::PRIMITIVE_PROCEDURE){
-        // TODO: eval the combo (ie apply?)
+      } else if(input->car->type == Value::Type::PRIMITIVE_PROCEDURE || 
+                input->car->type == Value::Type::PROCEDURE){
         Value* proc = input->car;
         Value* args = input->cdr;
 
-        Value* eval_args = nullptr;
-        for(Value* arg = args; arg != nullptr; arg = arg->cdr){
-          Value* res = doEval(arg->car, envt);
-          eval_args = new Value(res, eval_args);
+        // TODO: this should create a new environment, using the 
+        // procedure's store envt as a parent
+        // proc->args is a list of argument symbols
+        Environment* new_envt = new Environment();
+        new_envt->parent = envt;
+        for (Value* arg = args, *name = proc->args; arg != nullptr;
+             arg = arg->cdr, name = name->cdr) {
+          if(!name){
+            throw EvaluationError("Mismatching number of arg names and args provided.");
+          }
+          new_envt->setBinding(name->car, Binding(doEval(arg->car, envt)));
         }
-        eval_args = reverse(eval_args);
-        return proc->proc(eval_args);
+
+        if(proc->type == Value::Type::PRIMITIVE_PROCEDURE){
+          return proc->proc(new_envt);
+        }
+        // TODO: eval sequence of the proc body, using the new envt
+        Value* res = nullptr;
+        for (Value* statement = proc->body; statement != nullptr;
+             statement = statement->cdr) {
+          res = doEval(statement->car, new_envt);
+        }
+        return res;
       } else {
         throw EvaluationError("Cannot evaluate a pair that doesn't start with a pair, symbol, or procedure.");
       }
@@ -139,29 +161,42 @@ Value* doEval(Value* input, Environment* envt) {
     case Value::Type::SYMBOL:{
       return evalSymbol(input, envt);
     } break;
+    case Value::Type::PROCEDURE:
     case Value::Type::PRIMITIVE_PROCEDURE:{
       throw EvaluationError("Trying to evaluate a procedure that's not in a list.");
     } break;
   }
 }
 
-Value* addproc(Value* operands){
-  long res = 0;
-  for(Value* operand = operands; operand != nullptr; operand = operand->cdr){
-    res += operand->car->fixnum;
+// this dummy procedure adds the value of x with the value of y
+Value* addxyproc(Environment* envt){
+  auto x = getInternedSymbol("x");
+  auto xbdg = envt->getBinding(x);
+  auto y = getInternedSymbol("y");
+  auto ybdg = envt->getBinding(y);
+  if(!xbdg || !ybdg){
+    throw EvaluationError("Unable to get parameter for procedure.");
   }
+
+  long res = xbdg->variable->fixnum + ybdg->variable->fixnum;
   return new Value(res);
 }
 } // end unnamed namespace
 
 void initEval() {
+  /* Special Forms */
   GlobalEnvironment.setBinding(getInternedSymbol("quote"), Binding(evalQuote));
   GlobalEnvironment.setBinding(getInternedSymbol("define"), Binding(evalDefine));
   GlobalEnvironment.setBinding(getInternedSymbol("set!"), Binding(evalSet));
   GlobalEnvironment.setBinding(getInternedSymbol("if"), Binding(evalIf));
   GlobalEnvironment.setBinding(getInternedSymbol("let"), Binding(evalLet));
-  Value* add_proc = new Value(addproc);
-  GlobalEnvironment.setBinding(getInternedSymbol("add"), Binding(add_proc));
+  GlobalEnvironment.setBinding(getInternedSymbol("lambda"), Binding(evalLambda));
+
+  /* Primitive Procedures */
+  // need args and envt
+  Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
+  Value* addxy_proc = new Value(args, &GlobalEnvironment, addxyproc);
+  GlobalEnvironment.setBinding(getInternedSymbol("addxy"), Binding(addxy_proc));
 }
 
 Value* eval(Value* input) {

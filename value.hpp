@@ -7,7 +7,7 @@ namespace crisp{
 struct Environment;
 class Value;
 
-using PrimitiveProcedure = Value*(*)(Value* args);
+using PrimitiveProcedure = Value*(*)(Environment* envt);
 class Value {
   public:
     enum class Type {
@@ -17,7 +17,8 @@ class Value {
       STRING,
       PAIR,
       SYMBOL,
-      PRIMITIVE_PROCEDURE
+      PRIMITIVE_PROCEDURE,
+      PROCEDURE
     };
     Type type;
     struct Str{
@@ -37,8 +38,14 @@ class Value {
         Value* cdr;
       };
       Sym symbol;
-      PrimitiveProcedure proc; // for primitive proc
-      //Value* body; // for proc
+      struct { // for both kinds of procedures
+        Value* args; // list of arguments names for this procedure
+        Environment* envt;  // closure-style environment for this procedure
+        union {
+          PrimitiveProcedure proc; // for primitive proc
+          Value* body; // for procedures
+        };
+      };
     };
 
     explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
@@ -47,8 +54,10 @@ class Value {
     explicit Value(Str s) : type{Type::STRING}, str(s) {}
     explicit Value(Value* a, Value* d) : type{Type::PAIR}, car{a}, cdr{d} {}
     explicit Value(Sym s) : type{Type::SYMBOL}, symbol(s) {}
-    explicit Value(PrimitiveProcedure p)
-        : type{Type::PRIMITIVE_PROCEDURE}, proc{p} {}
+    explicit Value(Value* a, Environment* e, PrimitiveProcedure p)
+        : type{Type::PRIMITIVE_PROCEDURE}, args{a}, envt{e}, proc{p} {}
+    explicit Value(Value* a, Environment* e, Value* b)
+        : type{Type::PROCEDURE}, args{a}, envt{e}, body{b} {}
     Value() : type{Type::PAIR} {}
   private:
 };
