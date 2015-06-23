@@ -3,36 +3,12 @@
 
 #include "value.hpp"
 #include "eval.hpp"
+#include "eval-impl.hpp"
 
 using namespace std;
 
 namespace crisp{
 namespace { // unnamed namespace
-
-struct Environment;
-struct Binding{
-  using SpecialForm = Value*(*)(Value*, Environment*);
-  enum class Type{
-    VARIABLE, SPECIALFORM
-  };
-  Type type;
-  union{ 
-    Value* variable;
-    SpecialForm special_form;
-  };
-  explicit Binding(Value* v) : type{Type::VARIABLE}, variable{v} {}
-  explicit Binding(SpecialForm f) : type{Type::SPECIALFORM}, special_form{f} {}
-  explicit Binding() {}
-};
-
-struct Environment{
-  unordered_map<Value*, Binding> bindings;
-  Environment* parent;
-
-  Binding* getBinding(Value* value);
-  void setBinding(Value* key, Binding binding);
-  Environment() : bindings{}, parent{nullptr} {}
-};
 
 Binding* Environment::getBinding(Value* value) {
   auto bdg = bindings.find(value);
@@ -52,8 +28,6 @@ void Environment::setBinding(Value* key, Binding binding) {
 }
 
 Environment GlobalEnvironment;
-
-Value* doEval(Value* input, Environment* envt);
 
 Value* evalQuote(Value* input, Environment*) {
   return input->car;
@@ -93,6 +67,30 @@ Value* evalIf(Value* input, Environment* envt) {
   } else {
     return doEval(input->cdr->cdr->car, envt);
   }
+}
+
+Value* evalLet(Value* input, Environment* envt) {
+  auto binding_forms = input->car;
+  auto body_forms = input->cdr;
+
+  // make new envt
+  Environment* new_envt = new Environment();
+  new_envt->parent = envt;
+  // walk through all binding forms and add bindings
+  for (Value* binding_form = binding_forms; binding_form != nullptr;
+       binding_form = binding_form->cdr) {
+    auto bound = doEval(binding_form->car->cdr->car, envt);
+    Binding bdg(bound);
+    new_envt->setBinding(binding_form->car->car, bdg);
+  }
+
+  // walk through and evaluate all body forms with the new envt
+  Value* res = nullptr;
+  for (Value* body_form = body_forms; body_form != nullptr;
+       body_form = body_form->cdr) {
+    res = doEval(body_form->car, new_envt);
+  }
+  return res;
 }
 
 Value* doEval(Value* input, Environment* envt) {
@@ -140,6 +138,7 @@ void initEval() {
   GlobalEnvironment.setBinding(getInternedSymbol("define"), Binding(evalDefine));
   GlobalEnvironment.setBinding(getInternedSymbol("set!"), Binding(evalSet));
   GlobalEnvironment.setBinding(getInternedSymbol("if"), Binding(evalIf));
+  GlobalEnvironment.setBinding(getInternedSymbol("let"), Binding(evalLet));
 }
 
 Value* eval(Value* input) {
