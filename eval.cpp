@@ -136,14 +136,10 @@ Value* doEval(Value* input, Environment* envt) {
 } // end unnamed namespace
 
 void initEval() {
-  Quote = getInternedSymbol("quote");
-  GlobalEnvironment.setBinding(Quote, Binding(evalQuote));
-  Define = getInternedSymbol("define");
-  GlobalEnvironment.setBinding(Define, Binding(evalDefine));
-  Set = getInternedSymbol("set!");
-  GlobalEnvironment.setBinding(Set, Binding(evalSet));
-  If = getInternedSymbol("if");
-  GlobalEnvironment.setBinding(If, Binding(evalIf));
+  GlobalEnvironment.setBinding(getInternedSymbol("quote"), Binding(evalQuote));
+  GlobalEnvironment.setBinding(getInternedSymbol("define"), Binding(evalDefine));
+  GlobalEnvironment.setBinding(getInternedSymbol("set!"), Binding(evalSet));
+  GlobalEnvironment.setBinding(getInternedSymbol("if"), Binding(evalIf));
 }
 
 Value* eval(Value* input) {

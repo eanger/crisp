@@ -79,9 +79,5 @@ void print(Value* value) {
 Value True{true};
 Value False{false};
 Value* EmptyList{nullptr};
-Value* Quote;
-Value* Define;
-Value* Set;
-Value* If;
 }
 
