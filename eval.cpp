@@ -29,7 +29,7 @@ void Environment::setBinding(Value* key, Binding binding) {
 }
 
 namespace { // unnamed namespace
-Environment GlobalEnvironment;
+Environment GlobalEnvironment(nullptr);
 
 Value* evalQuote(Value* input, Environment*) {
   return input->car;
@@ -76,8 +76,7 @@ Value* evalLet(Value* input, Environment* envt) {
   auto body_forms = input->cdr;
 
   // make new envt
-  Environment* new_envt = new Environment();
-  new_envt->parent = envt;
+  Environment* new_envt = new Environment(envt);
   // walk through all binding forms and add bindings
   for (Value* binding_form = binding_forms; binding_form != nullptr;
        binding_form = binding_form->cdr) {
@@ -134,8 +133,7 @@ Value* doEval(Value* input, Environment* envt) {
         // TODO: this should create a new environment, using the 
         // procedure's store envt as a parent
         // proc->args is a list of argument symbols
-        Environment* new_envt = new Environment();
-        new_envt->parent = envt;
+        Environment* new_envt = new Environment(envt);
         for (Value* arg = args, *name = proc->args; arg != nullptr;
              arg = arg->cdr, name = name->cdr) {
           if(!name){

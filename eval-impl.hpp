@@ -5,6 +5,17 @@
 #include "value.hpp"
 
 namespace crisp{
+namespace{
+
+Value* doEval(Value* input, Environment* envt);
+Value* evalQuote(Value* input, Environment*);
+Value* evalDefine(Value* input, Environment* envt);
+Value* evalSet(Value* input, Environment* envt);
+Value* evalSymbol(Value* symbol, Environment* envt);
+Value* evalIf(Value* input, Environment* envt);
+Value* evalLet(Value* input, Environment* envt);
+
+}// end unnamed namespace
 
 struct Environment;
 
@@ -29,18 +40,7 @@ struct Environment{
 
   Binding* getBinding(Value* value);
   void setBinding(Value* key, Binding binding);
-  Environment() : bindings{}, parent{nullptr} {}
+  Environment(Environment* e) : bindings{}, parent{e} {}
 };
 
-namespace{
-
-Value* doEval(Value* input, Environment* envt);
-Value* evalQuote(Value* input, Environment*);
-Value* evalDefine(Value* input, Environment* envt);
-Value* evalSet(Value* input, Environment* envt);
-Value* evalSymbol(Value* symbol, Environment* envt);
-Value* evalIf(Value* input, Environment* envt);
-Value* evalLet(Value* input, Environment* envt);
-
-}// end unnamed namespace
 }

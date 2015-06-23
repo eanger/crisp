@@ -9,5 +9,3 @@
 
 # Evaluate
 - we shouldn't be able to define/set/operate on the result of a define or set, since they have a meaningless return value
-- Make the constructor for Environment take the parent pointer
-
