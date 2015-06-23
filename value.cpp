@@ -35,7 +35,8 @@ Value* getInternedSymbol(const string& name) {
 }
 
 void print(Value* value) {
-  if(!value){
+  if(value == EmptyList){
+    cout << "()";
     return;
   }
   switch(value->type){
@@ -57,10 +58,15 @@ void print(Value* value) {
     } break;
     case Value::Type::PAIR:{
       cout << "(";
-      if(value->car){
-        print(value->car);
-        cout << " . ";
-        print(value->cdr);
+      print(value->car);
+      for(Value* cdr = value->cdr; cdr; cdr = cdr->cdr){
+        if(cdr->type != Value::Type::PAIR){
+          cout << " . ";
+          print(cdr);
+          break;
+        }
+        cout << " ";
+        print(cdr->car);
       }
       cout << ")";
     } break;
@@ -72,7 +78,7 @@ void print(Value* value) {
 
 Value True{true};
 Value False{false};
-Value EmptyPair{};
+Value* EmptyList{nullptr};
 Value* Quote;
 Value* Define;
 Value* Set;

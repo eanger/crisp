@@ -7,24 +7,20 @@
 #include <utility>
 
 #include "read.hpp"
+#include "read-impl.hpp"
 #include "value.hpp"
 
 using namespace std;
 
 namespace crisp{
 namespace{ // implementation namespace
-enum class Token {
-  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, DOT, SYMBOL
-};
 
 bool isDelimiter(char c){
   return isspace(c) || (string{"()[]\";#"}.find(c) != string::npos);
 }
 
-Value* tryReadPair(istream& input_stream);
-
-Value* parse(istream& input_stream,
-             const pair<Token, string>& token) {
+Value* doRead(istream& input_stream){
+  auto token = readToken(input_stream);
   Value* result = nullptr;
   switch(token.first){
     case Token::NUMBER:{
@@ -47,95 +43,59 @@ Value* parse(istream& input_stream,
       result = new Value(s);
     } break;
     case Token::LPAREN:{
-      result = tryReadPair(input_stream);
+      result = readList(input_stream, EmptyList);
     } break;
     case Token::SYMBOL:{
-      if(token.second == "quote"){
-        result = Quote;
-      } else if(token.second == "define"){
-        result = Define;
-      } else if(token.second == "set!"){
-        result = Set;
-      } else if(token.second == "if"){
-        result = If;
-      } else {
-        return getInternedSymbol(token.second);
-      }
+      return getInternedSymbol(token.second);
     } break;
     case Token::RPAREN:{
-      // do nothing, return nullptr
-    } break;
-    case Token::DOT:{
-      // do nothing, return nullptr
-    } break;
+      return nullptr; // indicate that we're finished with a list
+    }
   }
   return result;
 }
 
-pair<Token, string> tryReadToken(istream& input_stream);
-Value* tryReadPair(istream& input_stream) {
-  auto token = tryReadToken(input_stream);
-  if(token.first  == Token::RPAREN){
-    // TODO: This should try and read another pair object, not abort
-    return &EmptyPair;
+Value* readList(istream& input_stream, Value* list_so_far) {
+  Value* v = doRead(input_stream);
+  if(v){
+    Value* new_list = new Value(v, list_so_far);
+    return readList(input_stream, new_list);
+  } else {
+    // TODO: reverse this list
+    Value* result_list = EmptyList;
+    for(Value* ptr = list_so_far; ptr != nullptr; ptr = ptr->cdr){
+      result_list = new Value(ptr->car, result_list);
+    }
+    return result_list;
   }
-  Value* first = parse(input_stream, token);
-  if(first == nullptr){
-    throw ParsingError("First element in pair can't be a dot or a right paren.");
-  }
-  auto dot = tryReadToken(input_stream);
-  // must be a dot
-  if(dot.first != Token::DOT){
-    throw ParsingError("Must have a dot separate elements in a list.");
-  }
-  token = tryReadToken(input_stream);
-  // second can't be an end-paren
-  if(token.first == Token::RPAREN){
-    throw ParsingError("Must have a second element in a pair.");
-  }
-  Value* second = parse(input_stream, token);
-
-  auto rparen = tryReadToken(input_stream);
-  // must end in an rparen
-  if(rparen.first != Token::RPAREN){
-    throw ParsingError("Pair must end in a right paren.");
-  }
-  return new Value{first, second};
 }
 
-pair<Token, string> tryReadNumber(istream& input_stream, char first_ch);
-pair<Token, string> tryReadLiteral(istream& input_stream);
-pair<Token, string> tryReadString(istream& input_stream);
-pair<Token, string> tryReadSymbol(istream& input_stream, char first_ch);
-pair<Token, string> tryReadToken(istream& input_stream) {
+pair<Token, string> readToken(istream& input_stream) {
   // attempt to read token, throw exception if failure
   char ch;
   input_stream.get(ch);
   if(ch == '-' || isdigit(ch)){
-    return tryReadNumber(input_stream, ch);
+    return readNumber(input_stream, ch);
   } else if(ch == '#'){
-    return tryReadLiteral(input_stream);
+    return readLiteral(input_stream);
   } else if(ch == '"'){
-    return tryReadString(input_stream);
+    return readString(input_stream);
   } else if(ch == '('){
     return make_pair(Token::LPAREN, string{"("});
   } else if(ch == ')'){
     return make_pair(Token::RPAREN, string{")"});
   } else if(isspace(ch)){
-    return tryReadToken(input_stream);
-  } else if(ch == '.'){
-    if(isDelimiter(input_stream.peek())){
-      return make_pair(Token::DOT, string{"."});
-    }
-    throw LexingError("Need delimiter after dot.");
+    return readToken(input_stream);
   } else if(isalpha(ch) || (string{"!$%&*/:<=>?^_~"}.find(ch) != string::npos)){
-    return tryReadSymbol(input_stream, ch);
+    return readSymbol(input_stream, ch);
+  } else if(ch == '.'){
+    throw LexingError("Cannot parse Dot Notation at this time.");
   } else {
     assert(false && "Should never be able to insert an unreadible character");
   }
 }
 
-pair<Token, string> tryReadNumber(istream& input_stream, char first_ch) {
+pair<Token, string> readNumber(istream& input_stream, char first_ch) {
   char ch;
   string result = "";
   result.push_back(first_ch);
@@ -153,7 +113,7 @@ pair<Token, string> tryReadNumber(istream& input_stream, char first_ch) {
   return make_pair(Token::NUMBER, result);
 }
 
-pair<Token, string> tryReadLiteral(istream& input_stream) {
+pair<Token, string> readLiteral(istream& input_stream) {
   char ch;
   input_stream.get(ch);
   if(ch == 't'){
@@ -178,7 +138,7 @@ pair<Token, string> tryReadLiteral(istream& input_stream) {
   }
 }
 
-pair<Token, string> tryReadString(istream& input_stream) {
+pair<Token, string> readString(istream& input_stream) {
   char ch;
   string result = "\"";
   while(input_stream.get(ch)){
@@ -193,7 +153,7 @@ pair<Token, string> tryReadString(istream& input_stream) {
   return make_pair(Token::STRING, result);
 }
 
-pair<Token, string> tryReadSymbol(istream& input_stream, char first_ch) {
+pair<Token, string> readSymbol(istream& input_stream, char first_ch) {
   string result = "";
   result.push_back(first_ch);
   char ch;
@@ -215,7 +175,7 @@ pair<Token, string> tryReadSymbol(istream& input_stream, char first_ch) {
 
 /***** API        *****/
 Value* read(istream& input_stream) {
-  return parse(input_stream, tryReadToken(input_stream));
+  return doRead(input_stream);
 }
 
 }

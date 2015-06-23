@@ -49,7 +49,7 @@ void print(Value* val);
 
 extern Value True;
 extern Value False;
-extern Value EmptyPair;
+extern Value* EmptyList;
 extern Value* Quote;
 extern Value* Define;
 extern Value* Set;

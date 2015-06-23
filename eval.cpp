@@ -56,11 +56,11 @@ Environment GlobalEnvironment;
 Value* doEval(Value* input, Environment* envt);
 
 Value* evalQuote(Value* input, Environment*) {
-  return input;
+  return input->car;
 };
 
 Value* evalDefine(Value* input, Environment* envt) {
-  envt->setBinding(input->car, Binding(doEval(input->cdr, envt)));
+  envt->setBinding(input->car, Binding(doEval(input->cdr->car, envt)));
   // MUST return null, since define has no printed result
   return nullptr;
 }
@@ -91,7 +91,7 @@ Value* evalIf(Value* input, Environment* envt) {
   if(doEval(input->car,envt) != &False){
     return doEval(input->cdr->car, envt);
   } else {
-    return doEval(input->cdr->cdr, envt);
+    return doEval(input->cdr->cdr->car, envt);
   }
 }
 
@@ -107,7 +107,7 @@ Value* doEval(Value* input, Environment* envt) {
       return input;
     } break;
     case Value::Type::PAIR:{
-      if(input == &EmptyPair){
+      if(input == EmptyList){
         return input;
       } else if(input->car->type == Value::Type::SYMBOL){
         auto binding = envt->getBinding(input->car);
