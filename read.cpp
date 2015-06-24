@@ -50,7 +50,11 @@ Value* doRead(istream& input_stream){
     } break;
     case Token::RPAREN:{
       return nullptr; // indicate that we're finished with a list
-    }
+    } break;
+    case Token::COMMA:{
+      auto quoted = doRead(input_stream);
+      result = new Value(getInternedSymbol("quote"), new Value(quoted, nullptr));
+    } break;
   }
   return result;
 }
@@ -85,6 +89,8 @@ pair<Token, string> readToken(istream& input_stream) {
     return readSymbol(input_stream, ch);
   } else if(ch == '.'){
     throw LexingError("Cannot parse Dot Notation at this time.");
+  } else if(ch == '\''){
+    return make_pair(Token::COMMA, string{"'"});
   } else {
     assert(false && "Should never be able to insert an unreadible character");
   }

@@ -7,7 +7,7 @@ namespace crisp{
 namespace{
 
 enum class Token {
-  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, SYMBOL
+  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, SYMBOL, COMMA
 };
 
 Value* doRead(std::istream& input_stream);
