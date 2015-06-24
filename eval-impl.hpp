@@ -6,15 +6,18 @@
 
 namespace crisp{
 namespace{
-
 Value* doEval(Value* input, Environment* envt);
-Value* evalQuote(Value* input, Environment*);
-Value* evalDefine(Value* input, Environment* envt);
-Value* evalSet(Value* input, Environment* envt);
 Value* evalSymbol(Value* symbol, Environment* envt);
-Value* evalIf(Value* input, Environment* envt);
-Value* evalLet(Value* input, Environment* envt);
 
+/***** Special Forms *****/
+Value* Quote(Value* input, Environment*);
+Value* Define(Value* input, Environment* envt);
+Value* Set(Value* input, Environment* envt);
+Value* If(Value* input, Environment* envt);
+Value* Let(Value* input, Environment* envt);
+Value* Lambda(Value* input, Environment* envt);
+/***** Primitive Procedures *****/
+Value* addxyproc(Environment* envt);
 }// end unnamed namespace
 
 struct Environment;
