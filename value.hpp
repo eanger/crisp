@@ -23,6 +23,7 @@ class Value {
     Type type;
     struct Str{
       char* str;
+      Str(const char* s);
     };
     struct Sym{
       char* name;

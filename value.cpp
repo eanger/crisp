@@ -19,6 +19,11 @@ Value::Sym::Sym(const char* n) {
   strcpy(name, n);
 }
 
+Value::Str::Str(const char* s) {
+  str = new char[strlen(s)]();
+  strcpy(str, s);
+}
+
 Value* getInternedSymbol(const string& name) {
   auto symbol_itr = find_if(begin(SymbolTable), end(SymbolTable),
                             [&](Value* v){ 
@@ -54,7 +59,7 @@ void print(Value* value) {
       cout << "#\\" << value->character;
     } break;
     case Value::Type::STRING:{
-      cout << value->str.str;
+      cout << "\"" << value->str.str << "\"";
     } break;
     case Value::Type::PAIR:{
       cout << "(";

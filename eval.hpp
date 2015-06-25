@@ -56,4 +56,5 @@ Value* addxyproc(Environment* envt);
 
 Value* eval(Value* input, Environment* envt);
 
+extern Environment GlobalEnvironment;
 }

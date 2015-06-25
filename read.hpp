@@ -1,10 +1,11 @@
 #pragma once
 #include <istream>
 #include <string>
-#include <utility>
+#include <tuple>
 
 #include "value.hpp"
 #include "exception.hpp"
+#include "eval.hpp"
 
 namespace crisp{
 
@@ -25,13 +26,14 @@ enum class Token {
 };
 
 /***** Functions *****/
-Value* read(std::istream& input_stream);
-Value* readList(std::istream& input_stream, Value* list_so_far);
+Value* doRead(std::istream& input_stream);
+Value* read(Environment* envt);
+Value* readList(Environment* envt);
 bool isDelimiter(char c);
-std::pair<Token, std::string> readLiteral(std::istream& input_stream);
-std::pair<Token, std::string> readNumber(std::istream& input_stream, char first_ch);
-std::pair<Token, std::string> readString(std::istream& input_stream);
-std::pair<Token, std::string> readSymbol(std::istream& input_stream, char first_ch);
-std::pair<Token, std::string> readToken(std::istream& input_stream);
+std::tuple<Token, std::string, char*> readLiteral(char* input);
+std::tuple<Token, std::string, char*> readNumber(char* input, char first_ch);
+std::tuple<Token, std::string, char*> readString(char* input);
+std::tuple<Token, std::string, char*> readSymbol(char* input, char first_ch);
+std::tuple<Token, std::string, char*> readToken(char* input);
 
 }

@@ -5,13 +5,12 @@
 
 #include "value.hpp"
 #include "eval.hpp"
+#include "read.hpp"
 
 using namespace std;
 
 namespace crisp{
-namespace { // unnamed namespace
 Environment GlobalEnvironment(nullptr);
-}
 
 Binding* Environment::getBinding(Value* value) {
   auto bdg = bindings.find(value);
@@ -44,6 +43,9 @@ void initEval() {
   Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
   Value* addxy_proc = new Value(args, &GlobalEnvironment, addxyproc);
   GlobalEnvironment.setBinding(getInternedSymbol("addxy"), Binding(addxy_proc));
+  args = new Value(getInternedSymbol("input"), nullptr);
+  Value* read_proc = new Value(args, &GlobalEnvironment, read);
+  GlobalEnvironment.setBinding(getInternedSymbol("read"), Binding(read_proc));
 }
 
 Value* doEval(Value* input){
@@ -52,7 +54,7 @@ Value* doEval(Value* input){
 
 Value* eval(Value* input, Environment* envt) {
   if(!input){
-    throw EvaluationError("Cannot evaluate null Value.");
+    return input;
   }
   switch(input->type){
     case Value::Type::FIXNUM:
@@ -62,9 +64,7 @@ Value* eval(Value* input, Environment* envt) {
       return input;
     } break;
     case Value::Type::PAIR:{
-      if(input == EmptyList){
-        return input;
-      } else if(input->car->type == Value::Type::SYMBOL){
+      if(input->car->type == Value::Type::SYMBOL){
         auto binding = envt->getBinding(input->car);
         switch(binding->type){
           case Binding::Type::VARIABLE:{
