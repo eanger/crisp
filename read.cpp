@@ -7,19 +7,17 @@
 #include <utility>
 
 #include "read.hpp"
-#include "read-impl.hpp"
 #include "value.hpp"
 
 using namespace std;
 
 namespace crisp{
-namespace{ // implementation namespace
 
 bool isDelimiter(char c){
   return isspace(c) || (string{"()[]\";#"}.find(c) != string::npos);
 }
 
-Value* doRead(istream& input_stream){
+Value* read(istream& input_stream){
   auto token = readToken(input_stream);
   Value* result = nullptr;
   switch(token.first){
@@ -52,7 +50,7 @@ Value* doRead(istream& input_stream){
       return nullptr; // indicate that we're finished with a list
     } break;
     case Token::COMMA:{
-      auto quoted = doRead(input_stream);
+      auto quoted = read(input_stream);
       result = new Value(getInternedSymbol("quote"), new Value(quoted, nullptr));
     } break;
   }
@@ -60,58 +58,13 @@ Value* doRead(istream& input_stream){
 }
 
 Value* readList(istream& input_stream, Value* list_so_far) {
-  Value* v = doRead(input_stream);
+  Value* v = read(input_stream);
   if(v){
     Value* new_list = new Value(v, list_so_far);
     return readList(input_stream, new_list);
   } else {
     return reverse(list_so_far);
   }
-}
-
-pair<Token, string> readToken(istream& input_stream) {
-  // attempt to read token, throw exception if failure
-  char ch;
-  input_stream.get(ch);
-  if(ch == '-' || isdigit(ch)){
-    return readNumber(input_stream, ch);
-  } else if(ch == '#'){
-    return readLiteral(input_stream);
-  } else if(ch == '"'){
-    return readString(input_stream);
-  } else if(ch == '('){
-    return make_pair(Token::LPAREN, string{"("});
-  } else if(ch == ')'){
-    return make_pair(Token::RPAREN, string{")"});
-  } else if(isspace(ch)){
-    return readToken(input_stream);
-  } else if(isalpha(ch) || (string{"!$%&*/:<=>?^_~"}.find(ch) != string::npos)){
-    return readSymbol(input_stream, ch);
-  } else if(ch == '.'){
-    throw LexingError("Cannot parse Dot Notation at this time.");
-  } else if(ch == '\''){
-    return make_pair(Token::COMMA, string{"'"});
-  } else {
-    assert(false && "Should never be able to insert an unreadible character");
-  }
-}
-
-pair<Token, string> readNumber(istream& input_stream, char first_ch) {
-  char ch;
-  string result = "";
-  result.push_back(first_ch);
-  while(input_stream.get(ch)){
-    if(isdigit(ch)){
-      result.push_back(ch);
-    } else if(isDelimiter(ch)){
-      input_stream.unget();
-      break;
-    } else {
-      // throw, cant have weird symbols in a number
-      throw LexingError("Non-numeric digit.");
-    }
-  }
-  return make_pair(Token::NUMBER, result);
 }
 
 pair<Token, string> readLiteral(istream& input_stream) {
@@ -137,6 +90,24 @@ pair<Token, string> readLiteral(istream& input_stream) {
     // throw, invalid literal syntax
     throw LexingError("Invalid literal syntax.");
   }
+}
+
+pair<Token, string> readNumber(istream& input_stream, char first_ch) {
+  char ch;
+  string result = "";
+  result.push_back(first_ch);
+  while(input_stream.get(ch)){
+    if(isdigit(ch)){
+      result.push_back(ch);
+    } else if(isDelimiter(ch)){
+      input_stream.unget();
+      break;
+    } else {
+      // throw, cant have weird symbols in a number
+      throw LexingError("Non-numeric digit.");
+    }
+  }
+  return make_pair(Token::NUMBER, result);
 }
 
 pair<Token, string> readString(istream& input_stream) {
@@ -172,11 +143,31 @@ pair<Token, string> readSymbol(istream& input_stream, char first_ch) {
   return make_pair(Token::SYMBOL, result);
 }
 
-} // end unnamed namespace
-
-/***** API        *****/
-Value* read(istream& input_stream) {
-  return doRead(input_stream);
+pair<Token, string> readToken(istream& input_stream) {
+  // attempt to read token, throw exception if failure
+  char ch;
+  input_stream.get(ch);
+  if(ch == '-' || isdigit(ch)){
+    return readNumber(input_stream, ch);
+  } else if(ch == '#'){
+    return readLiteral(input_stream);
+  } else if(ch == '"'){
+    return readString(input_stream);
+  } else if(ch == '('){
+    return make_pair(Token::LPAREN, string{"("});
+  } else if(ch == ')'){
+    return make_pair(Token::RPAREN, string{")"});
+  } else if(isspace(ch)){
+    return readToken(input_stream);
+  } else if(isalpha(ch) || (string{"!$%&*/:<=>?^_~"}.find(ch) != string::npos)){
+    return readSymbol(input_stream, ch);
+  } else if(ch == '.'){
+    throw LexingError("Cannot parse Dot Notation at this time.");
+  } else if(ch == '\''){
+    return make_pair(Token::COMMA, string{"'"});
+  } else {
+    assert(false && "Should never be able to insert an unreadible character");
+  }
 }
 
 }

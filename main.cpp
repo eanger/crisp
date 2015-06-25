@@ -15,7 +15,7 @@ int main(int, char*[]) {
   while(true){
     cout << "crisp> ";
     try{
-      print(eval(read(cin)));
+      print(doEval(read(cin)));
     } catch(const exception& e){
       cout << e.what();
       cin.clear();
