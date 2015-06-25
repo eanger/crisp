@@ -1,4 +1,6 @@
 # Current To-do
+- tests
+- refactoring with tests
 
 # General
 - we're leaking memory now
