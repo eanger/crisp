@@ -66,6 +66,9 @@ Value* eval(Value* input, Environment* envt) {
     case Value::Type::PAIR:{
       if(input->car->type == Value::Type::SYMBOL){
         auto binding = envt->getBinding(input->car);
+        if(!binding){
+          throw EvaluationError("Cannot call undefined symbol.");
+        }
         switch(binding->type){
           case Binding::Type::VARIABLE:{
             Value val(eval(input->car, envt), input->cdr);
