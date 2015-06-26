@@ -19,11 +19,11 @@ crisp: $(MAIN_OBJ) $(OBJ)
 
 .PHONY: clean check
 
-test: $(TEST_OBJ) $(OBJ)
+run-tests: $(TEST_OBJ) $(OBJ)
 	clang++ -g -Wall -Wextra -std=c++1y -stdlib=libc++ -o $@ $+
 
-check: test
-	./test
+check: run-tests
+	./run-tests
 
 clean:
-	-rm test crisp *.o tests/*.o
+	-rm run-tests crisp *.o tests/*.o
