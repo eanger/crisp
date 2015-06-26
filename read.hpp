@@ -28,7 +28,8 @@ enum class Token {
 /***** Functions *****/
 Value* doRead(std::istream& input_stream);
 Value* read(Environment* envt);
-Value* readList(Environment* envt);
+std::tuple<Value*, char*> readElement(char* input);
+std::tuple<Value*, char*> readList(char* input, Value* list_so_far);
 bool isDelimiter(char c);
 std::tuple<Token, std::string, char*> readLiteral(char* input);
 std::tuple<Token, std::string, char*> readNumber(char* input, char first_ch);

@@ -26,16 +26,18 @@ Value* read(Environment* envt){
   if(input->type != Value::Type::STRING){
     throw EvaluationError("Unable to read anything but a string.");
   }
+  return get<0>(readElement(input->str.str));
+}
+
+tuple<Value*, char*> readElement(char* input){
   // attempt to read token, throw exception if failure
-  if(strlen(input->str.str) == 0){
+  if(strlen(input) == 0){
     throw EvaluationError("Unable to read token from empty string.");
   }
   Token token_type;
   string token_contents;
   char* rest;
-  tie(token_type, token_contents, rest) = readToken(input->str.str);
-  Value::Str s{rest};
-  envt->setBinding(getInternedSymbol("input"), new Value{s});
+  tie(token_type, token_contents, rest) = readToken(input);
   Value* result = nullptr;
   switch(token_type){
     case Token::NUMBER:{
@@ -56,9 +58,7 @@ Value* read(Environment* envt){
       result = new Value(s);
     } break;
     case Token::LPAREN:{
-      Environment* new_envt = new Environment(envt);
-      new_envt->setBinding(getInternedSymbol("list-so-far"), EmptyList);
-      result = readList(new_envt);
+      tie(result, rest) = readList(rest, EmptyList);
     } break;
     case Token::SYMBOL:{
       result = getInternedSymbol(token_contents);
@@ -67,22 +67,23 @@ Value* read(Environment* envt){
       result = nullptr; // indicate that we're finished with a list
     } break;
     case Token::COMMA:{
-      auto quoted = read(envt);
+      Value* quoted;
+      tie(quoted, rest) = readElement(rest);
       result = new Value(getInternedSymbol("quote"), new Value(quoted, nullptr));
     } break;
   }
-  return result;
+  return {result, rest};
 }
 
-Value* readList(Environment* envt){
-  Value* v = read(envt);
-  auto list_so_far = envt->getBinding(getInternedSymbol("list-so-far"));
+tuple<Value*, char*> readList(char* input, Value* list_so_far){
+  Value* v;
+  char* rest;
+  tie(v, rest) = readElement(input);
   if(v){
     Value* new_list = new Value(v, list_so_far);
-    envt->setBinding(getInternedSymbol("list-so-far"), new_list);
-    return readList(envt);
+    return readList(rest, new_list);
   } else {
-    return reverse(list_so_far);
+    return {reverse(list_so_far), rest};
   }
 }
 
