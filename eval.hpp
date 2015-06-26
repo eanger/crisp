@@ -13,29 +13,12 @@ class EvaluationError : public VerboseError {
 };
 
 /***** Classes *****/
-struct Environment;
-
-struct Binding{
-  using SpecialForm = Value*(*)(Value*, Environment*);
-  enum class Type{
-    VARIABLE, SPECIALFORM
-  };
-  Type type;
-  union{ 
-    Value* variable;
-    SpecialForm special_form;
-  };
-  explicit Binding(Value* v) : type{Type::VARIABLE}, variable{v} {}
-  explicit Binding(SpecialForm f) : type{Type::SPECIALFORM}, special_form{f} {}
-  explicit Binding() {}
-};
-
 struct Environment{
-  std::unordered_map<Value*, Binding> bindings;
+  std::unordered_map<Value*, Value*> bindings;
   Environment* parent;
 
-  Binding* getBinding(Value* value);
-  void setBinding(Value* key, Binding binding);
+  Value* getBinding(Value* value);
+  void setBinding(Value* key, Value* binding);
   Environment(Environment* e) : bindings{}, parent{e} {}
 };
 

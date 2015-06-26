@@ -82,6 +82,9 @@ void print(Value* value) {
     case Value::Type::PRIMITIVE_PROCEDURE:{
       cout << "#<procedure>";
     } break;
+    case Value::Type::SPECIAL_FORM:{
+      cout << "#<syntax>";
+    } break;
   }
 }
 

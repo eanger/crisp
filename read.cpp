@@ -19,26 +19,23 @@ bool isDelimiter(char c){
 }
 
 Value* read(Environment* envt){
-  auto bdg = envt->getBinding(getInternedSymbol("input"));
-  if(!bdg){
+  auto input = envt->getBinding(getInternedSymbol("input"));
+  if(!input){
     throw EvaluationError("Cannot get input binding.");
   }
-  if(bdg->type != Binding::Type::VARIABLE){
-    throw EvaluationError("Input bound to special form, not value.");
-  }
-  if(bdg->variable->type != Value::Type::STRING){
+  if(input->type != Value::Type::STRING){
     throw EvaluationError("Unable to read anything but a string.");
   }
   // attempt to read token, throw exception if failure
-  if(strlen(bdg->variable->str.str) == 0){
+  if(strlen(input->str.str) == 0){
     throw EvaluationError("Unable to read token from empty string.");
   }
   Token token_type;
   string token_contents;
   char* rest;
-  tie(token_type, token_contents, rest) = readToken(bdg->variable->str.str);
+  tie(token_type, token_contents, rest) = readToken(input->str.str);
   Value::Str s{rest};
-  envt->setBinding(getInternedSymbol("input"), Binding{new Value{s}});
+  envt->setBinding(getInternedSymbol("input"), new Value{s});
   Value* result = nullptr;
   switch(token_type){
     case Token::NUMBER:{
@@ -60,7 +57,7 @@ Value* read(Environment* envt){
     } break;
     case Token::LPAREN:{
       Environment* new_envt = new Environment(envt);
-      new_envt->setBinding(getInternedSymbol("list-so-far"), Binding{EmptyList});
+      new_envt->setBinding(getInternedSymbol("list-so-far"), EmptyList);
       result = readList(new_envt);
     } break;
     case Token::SYMBOL:{
@@ -79,13 +76,13 @@ Value* read(Environment* envt){
 
 Value* readList(Environment* envt){
   Value* v = read(envt);
-  auto list_so_far_bdg = envt->getBinding(getInternedSymbol("list-so-far"));
+  auto list_so_far = envt->getBinding(getInternedSymbol("list-so-far"));
   if(v){
-    Value* new_list = new Value(v, list_so_far_bdg->variable);
-    envt->setBinding(getInternedSymbol("list-so-far"), Binding{new_list});
+    Value* new_list = new Value(v, list_so_far);
+    envt->setBinding(getInternedSymbol("list-so-far"), new_list);
     return readList(envt);
   } else {
-    return reverse(list_so_far_bdg->variable);
+    return reverse(list_so_far);
   }
 }
 
@@ -209,7 +206,7 @@ Value* doRead(istream& input_stream){
   Value::Str s{line.c_str()};
   Value v{s};
   Environment* envt = new Environment{&GlobalEnvironment};
-  envt->setBinding(getInternedSymbol("input"), Binding{&v});
+  envt->setBinding(getInternedSymbol("input"), &v);
   auto res = read(envt);
   return res;
 }

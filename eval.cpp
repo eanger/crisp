@@ -12,10 +12,10 @@ using namespace std;
 namespace crisp{
 Environment GlobalEnvironment(nullptr);
 
-Binding* Environment::getBinding(Value* value) {
+Value* Environment::getBinding(Value* value) {
   auto bdg = bindings.find(value);
   if(bdg != end(bindings)){
-    return &bdg->second;
+    return bdg->second;
   } else{
     if(parent){
       return parent->getBinding(value);
@@ -25,27 +25,27 @@ Binding* Environment::getBinding(Value* value) {
   }
 }
 
-void Environment::setBinding(Value* key, Binding binding) {
+void Environment::setBinding(Value* key, Value* binding) {
   bindings[key] = binding;
 }
 
 void initEval() {
   /* Special Forms */
-  GlobalEnvironment.setBinding(getInternedSymbol("quote"), Binding(Quote));
-  GlobalEnvironment.setBinding(getInternedSymbol("define"), Binding(Define));
-  GlobalEnvironment.setBinding(getInternedSymbol("set!"), Binding(Set));
-  GlobalEnvironment.setBinding(getInternedSymbol("if"), Binding(If));
-  GlobalEnvironment.setBinding(getInternedSymbol("let"), Binding(Let));
-  GlobalEnvironment.setBinding(getInternedSymbol("lambda"), Binding(Lambda));
+  GlobalEnvironment.setBinding(getInternedSymbol("quote"), new Value(Quote));
+  GlobalEnvironment.setBinding(getInternedSymbol("define"), new Value(Define));
+  GlobalEnvironment.setBinding(getInternedSymbol("set!"), new Value(Set));
+  GlobalEnvironment.setBinding(getInternedSymbol("if"), new Value(If));
+  GlobalEnvironment.setBinding(getInternedSymbol("let"), new Value(Let));
+  GlobalEnvironment.setBinding(getInternedSymbol("lambda"), new Value(Lambda));
 
   /* Primitive Procedures */
   // need args and envt
   Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
   Value* addxy_proc = new Value(args, &GlobalEnvironment, addxyproc);
-  GlobalEnvironment.setBinding(getInternedSymbol("addxy"), Binding(addxy_proc));
+  GlobalEnvironment.setBinding(getInternedSymbol("addxy"), addxy_proc);
   args = new Value(getInternedSymbol("input"), nullptr);
   Value* read_proc = new Value(args, &GlobalEnvironment, read);
-  GlobalEnvironment.setBinding(getInternedSymbol("read"), Binding(read_proc));
+  GlobalEnvironment.setBinding(getInternedSymbol("read"), read_proc);
 }
 
 Value* doEval(Value* input){
@@ -69,15 +69,10 @@ Value* eval(Value* input, Environment* envt) {
         if(!binding){
           throw EvaluationError("Cannot call undefined symbol.");
         }
-        switch(binding->type){
-          case Binding::Type::VARIABLE:{
-            Value val(eval(input->car, envt), input->cdr);
-            return eval(&val, envt);
-          } break;
-          case Binding::Type::SPECIALFORM:{
-            return binding->special_form(input->cdr, envt);
-          } break;
+        if(binding->type == Value::Type::SPECIAL_FORM){
+          return binding->special_form(input->cdr, envt);
         }
+        return eval(new Value(eval(input->car, envt), input->cdr), envt);
       } else if(input->car->type == Value::Type::PAIR){
         return eval(new Value(eval(input->car, envt), input->cdr), envt);
       } else if(input->car->type == Value::Type::PRIMITIVE_PROCEDURE || 
@@ -94,7 +89,7 @@ Value* eval(Value* input, Environment* envt) {
           if(!name){
             throw EvaluationError("Mismatching number of arg names and args provided.");
           }
-          new_envt->setBinding(name->car, Binding(eval(arg->car, envt)));
+          new_envt->setBinding(name->car, eval(arg->car, envt));
         }
 
         if(proc->type == Value::Type::PRIMITIVE_PROCEDURE){
@@ -114,6 +109,7 @@ Value* eval(Value* input, Environment* envt) {
     case Value::Type::SYMBOL:{
       return evalSymbol(input, envt);
     } break;
+    case Value::Type::SPECIAL_FORM:
     case Value::Type::PROCEDURE:
     case Value::Type::PRIMITIVE_PROCEDURE:{
       throw EvaluationError("Trying to evaluate a procedure that's not in a list.");
@@ -127,11 +123,7 @@ Value* evalSymbol(Value* symbol, Environment* envt) {
   if(!bdg){
     throw EvaluationError("Cannot evaluate undefined symbol");
   }
-  if(bdg->type == Binding::Type::VARIABLE){
-    return bdg->variable;
-  } else {
-    throw EvaluationError("Non-variable name referenced as a variable");
-  }
+  return bdg;
 }
 
 /***** Special Forms *****/
@@ -140,7 +132,7 @@ Value* Quote(Value* input, Environment*) {
 };
 
 Value* Define(Value* input, Environment* envt) {
-  envt->setBinding(input->car, Binding(eval(input->cdr->car, envt)));
+  envt->setBinding(input->car, eval(input->cdr->car, envt));
   // MUST return null, since define has no printed result
   return nullptr;
 }
@@ -172,8 +164,7 @@ Value* Let(Value* input, Environment* envt) {
   for (Value* binding_form = binding_forms; binding_form != nullptr;
        binding_form = binding_form->cdr) {
     auto bound = eval(binding_form->car->cdr->car, envt);
-    Binding bdg(bound);
-    new_envt->setBinding(binding_form->car->car, bdg);
+    new_envt->setBinding(binding_form->car->car, bound);
   }
 
   // walk through and evaluate all body forms with the new envt
@@ -192,15 +183,16 @@ Value* Lambda(Value* input, Environment* envt) {
 /***** Primitive Procedures *****/
 // this dummy procedure adds the value of x with the value of y
 Value* addxyproc(Environment* envt){
-  auto x = getInternedSymbol("x");
-  auto xbdg = envt->getBinding(x);
-  auto y = getInternedSymbol("y");
-  auto ybdg = envt->getBinding(y);
-  if(!xbdg || !ybdg){
+  auto x = envt->getBinding(getInternedSymbol("x"));
+  auto y = envt->getBinding(getInternedSymbol("y"));
+  if(!x || !y){
     throw EvaluationError("Unable to get parameter for procedure.");
   }
+  if(x->type != Value::Type::FIXNUM || y->type != Value::Type::FIXNUM){
+    throw EvaluationError("Unable to add two values that aren't fixnums.");
+  }
 
-  long res = xbdg->variable->fixnum + ybdg->variable->fixnum;
+  long res = x->fixnum + y->fixnum;
   return new Value(res);
 }
 

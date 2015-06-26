@@ -8,6 +8,7 @@ struct Environment;
 class Value;
 
 using PrimitiveProcedure = Value*(*)(Environment* envt);
+using SpecialForm = Value*(*)(Value*, Environment*);
 class Value {
   public:
     enum class Type {
@@ -18,7 +19,8 @@ class Value {
       PAIR,
       SYMBOL,
       PRIMITIVE_PROCEDURE,
-      PROCEDURE
+      PROCEDURE,
+      SPECIAL_FORM
     };
     Type type;
     struct Str{
@@ -47,6 +49,7 @@ class Value {
           Value* body; // for procedures
         };
       };
+      SpecialForm special_form;
     };
 
     explicit Value(long n) : type{Type::FIXNUM}, fixnum{n} {}
@@ -59,6 +62,7 @@ class Value {
         : type{Type::PRIMITIVE_PROCEDURE}, args{a}, envt{e}, proc{p} {}
     explicit Value(Value* a, Environment* e, Value* b)
         : type{Type::PROCEDURE}, args{a}, envt{e}, body{b} {}
+    explicit Value(SpecialForm s) : type{Type::SPECIAL_FORM}, special_form{s} {}
     Value() : type{Type::PAIR} {}
   private:
 };
