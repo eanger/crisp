@@ -18,7 +18,6 @@ class Value {
       STRING,
       PAIR,
       SYMBOL,
-      PRIMITIVE_PROCEDURE,
       PROCEDURE,
       SPECIAL_FORM
     };
@@ -41,12 +40,13 @@ class Value {
         Value* cdr;
       };
       Sym symbol;
-      struct { // for both kinds of procedures
+      struct { // for procedures
         Value* args; // list of arguments names for this procedure
         Environment* envt;  // closure-style environment for this procedure
+        bool is_primitive; // if true, the procedure is primitive
         union {
-          PrimitiveProcedure proc; // for primitive proc
-          Value* body; // for procedures
+          PrimitiveProcedure prim_procedure; // for primitive procedures
+          Value* body; // for regular procedures
         };
       };
       SpecialForm special_form;
@@ -59,9 +59,9 @@ class Value {
     explicit Value(Value* a, Value* d) : type{Type::PAIR}, car{a}, cdr{d} {}
     explicit Value(Sym s) : type{Type::SYMBOL}, symbol(s) {}
     explicit Value(Value* a, Environment* e, PrimitiveProcedure p)
-        : type{Type::PRIMITIVE_PROCEDURE}, args{a}, envt{e}, proc{p} {}
+        : type{Type::PROCEDURE}, args{a}, envt{e}, is_primitive{true}, prim_procedure{p} {}
     explicit Value(Value* a, Environment* e, Value* b)
-        : type{Type::PROCEDURE}, args{a}, envt{e}, body{b} {}
+        : type{Type::PROCEDURE}, args{a}, envt{e}, is_primitive{false}, body{b} {}
     explicit Value(SpecialForm s) : type{Type::SPECIAL_FORM}, special_form{s} {}
     Value() : type{Type::PAIR} {}
   private:

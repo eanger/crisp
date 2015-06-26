@@ -75,8 +75,7 @@ Value* eval(Value* input, Environment* envt) {
         return eval(new Value(eval(input->car, envt), input->cdr), envt);
       } else if(input->car->type == Value::Type::PAIR){
         return eval(new Value(eval(input->car, envt), input->cdr), envt);
-      } else if(input->car->type == Value::Type::PRIMITIVE_PROCEDURE || 
-                input->car->type == Value::Type::PROCEDURE){
+      } else if(input->car->type == Value::Type::PROCEDURE){
         Value* proc = input->car;
         Value* args = input->cdr;
 
@@ -92,8 +91,8 @@ Value* eval(Value* input, Environment* envt) {
           new_envt->setBinding(name->car, eval(arg->car, envt));
         }
 
-        if(proc->type == Value::Type::PRIMITIVE_PROCEDURE){
-          return proc->proc(new_envt);
+        if(proc->is_primitive){
+          return proc->prim_procedure(new_envt);
         }
         // TODO: eval sequence of the proc body, using the new envt
         Value* res = nullptr;
@@ -110,8 +109,7 @@ Value* eval(Value* input, Environment* envt) {
       return evalSymbol(input, envt);
     } break;
     case Value::Type::SPECIAL_FORM:
-    case Value::Type::PROCEDURE:
-    case Value::Type::PRIMITIVE_PROCEDURE:{
+    case Value::Type::PROCEDURE:{
       throw EvaluationError("Trying to evaluate a procedure that's not in a list.");
     } break;
   }
