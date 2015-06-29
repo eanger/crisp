@@ -1,4 +1,5 @@
 # Current To-do
+- implement cons to facilitate building lists: ie refactoring
 - implementing quasiquote and unquote
 
 

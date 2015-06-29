@@ -37,6 +37,7 @@ Value* Lambda(Value* input, Environment* envt);
 Value* Quasiquote(Value* input, Environment* envt);
 /***** Primitive Procedures *****/
 Value* addxyproc(Environment* envt);
+Value* cons(Environment* envt);
 
 Value* eval(Value* input, Environment* envt);
 

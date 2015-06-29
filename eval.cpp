@@ -39,13 +39,17 @@ void initEval() {
   GlobalEnvironment.setBinding(getInternedSymbol("lambda"), new Value(Lambda));
 
   /* Primitive Procedures */
-  // need args and envt
   Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
   Value* addxy_proc = new Value(args, &GlobalEnvironment, addxyproc);
   GlobalEnvironment.setBinding(getInternedSymbol("addxy"), addxy_proc);
+
   args = new Value(getInternedSymbol("input"), nullptr);
   Value* read_proc = new Value(args, &GlobalEnvironment, read);
   GlobalEnvironment.setBinding(getInternedSymbol("read"), read_proc);
+
+  args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
+  Value* cons_proc = new Value(args, &GlobalEnvironment, cons);
+  GlobalEnvironment.setBinding(getInternedSymbol("cons"), cons_proc);
 }
 
 Value* doEval(Value* input){
@@ -192,6 +196,15 @@ Value* addxyproc(Environment* envt){
 
   long res = x->fixnum + y->fixnum;
   return new Value(res);
+}
+
+Value* cons(Environment* envt){
+  auto x = envt->getBinding(getInternedSymbol("x"));
+  auto y = envt->getBinding(getInternedSymbol("y"));
+  if(!x || !y){
+    throw EvaluationError("Unable to get parameter for procedure.");
+  }
+  return new Value(eval(x, envt), eval(y, envt));
 }
 
 }
