@@ -1,3 +1,3 @@
 crisp
 *.o
-test
+run-tests
