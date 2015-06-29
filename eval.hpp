@@ -34,6 +34,7 @@ Value* Set(Value* input, Environment* envt);
 Value* If(Value* input, Environment* envt);
 Value* Let(Value* input, Environment* envt);
 Value* Lambda(Value* input, Environment* envt);
+Value* Quasiquote(Value* input, Environment* envt);
 /***** Primitive Procedures *****/
 Value* addxyproc(Environment* envt);
 

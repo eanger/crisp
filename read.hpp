@@ -22,7 +22,7 @@ class ParsingError : public VerboseError {
 
 /***** Classes *****/
 enum class Token {
-  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, SYMBOL, COMMA
+  NUMBER, BOOLEAN, CHARACTER, STRING, LPAREN, RPAREN, SYMBOL, QUOTE, BACKTICK, COMMA
 };
 
 /***** Functions *****/

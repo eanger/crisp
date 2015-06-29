@@ -66,10 +66,20 @@ tuple<Value*, char*> readElement(char* input){
     case Token::RPAREN:{
       result = nullptr; // indicate that we're finished with a list
     } break;
-    case Token::COMMA:{
+    case Token::QUOTE:{
       Value* quoted;
       tie(quoted, rest) = readElement(rest);
       result = new Value(getInternedSymbol("quote"), new Value(quoted, nullptr));
+    } break;
+    case Token::BACKTICK:{
+      Value* quasiquoted;
+      tie(quasiquoted, rest) = readElement(rest);
+      result = new Value(getInternedSymbol("quasiquote"), new Value(quasiquoted, nullptr));
+    } break;
+    case Token::COMMA:{
+      Value* unquoted;
+      tie(unquoted, rest) = readElement(rest);
+      result = new Value(getInternedSymbol("unquote"), new Value(unquoted, nullptr));
     } break;
   }
   return {result, rest};
@@ -192,7 +202,11 @@ tuple<Token, string, char*> readToken(char* input) {
   } else if(ch == '.'){
     throw LexingError("Cannot parse Dot Notation at this time.");
   } else if(ch == '\''){
-    return make_tuple(Token::COMMA, string{"'"}, rest);
+    return make_tuple(Token::QUOTE, string{"'"}, rest);
+  } else if(ch == '`'){
+    return make_tuple(Token::BACKTICK, string{"`"}, rest);
+  } else if(ch == ','){
+    return make_tuple(Token::COMMA, string{","}, rest);
   } else {
     assert(false && "Should never be able to insert an unreadible character");
   }
