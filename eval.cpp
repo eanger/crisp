@@ -39,17 +39,27 @@ void initEval() {
   GlobalEnvironment.setBinding(getInternedSymbol("lambda"), new Value(Lambda));
 
   /* Primitive Procedures */
-  Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
+  Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), EmptyList));
   Value* addxy_proc = new Value(args, &GlobalEnvironment, addxyproc);
   GlobalEnvironment.setBinding(getInternedSymbol("addxy"), addxy_proc);
 
-  args = new Value(getInternedSymbol("input"), nullptr);
+  args = new Value(getInternedSymbol("input"), EmptyList);
   Value* read_proc = new Value(args, &GlobalEnvironment, read);
   GlobalEnvironment.setBinding(getInternedSymbol("read"), read_proc);
 
-  args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), nullptr));
+  args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), EmptyList));
   Value* cons_proc = new Value(args, &GlobalEnvironment, cons);
   GlobalEnvironment.setBinding(getInternedSymbol("cons"), cons_proc);
+  
+  args = getInternedSymbol("args");
+  Value* add_proc = new Value(args, &GlobalEnvironment, add);
+  GlobalEnvironment.setBinding(getInternedSymbol("add"), add_proc);
+
+  args = new Value(
+      getInternedSymbol("first"),
+      new Value(getInternedSymbol("second"), getInternedSymbol("rest")));
+  Value* add2ormore_proc = new Value(args, &GlobalEnvironment, add2ormore);
+  GlobalEnvironment.setBinding(getInternedSymbol("add2ormore"), add2ormore_proc);
 }
 
 Value* doEval(Value* input){
@@ -57,7 +67,7 @@ Value* doEval(Value* input){
 }
 
 Value* eval(Value* input, Environment* envt) {
-  if(!input){
+  if(!input || input == EmptyList){
     return input;
   }
   switch(input->type){
@@ -83,24 +93,33 @@ Value* eval(Value* input, Environment* envt) {
         Value* proc = input->car;
         Value* args = input->cdr;
 
-        // TODO: this should create a new environment, using the 
-        // procedure's store envt as a parent
-        // proc->args is a list of argument symbols
-        Environment* new_envt = new Environment(envt);
-        for (Value* arg = args, *name = proc->args; arg != nullptr;
-             arg = arg->cdr, name = name->cdr) {
-          if(!name){
-            throw EvaluationError("Mismatching number of arg names and args provided.");
+        // First, evaluate all parameters
+        Value* eval_params = EmptyList;
+        for(Value* arg = args; arg != EmptyList; arg = arg->cdr){
+          eval_params = new Value(eval(arg->car, envt), eval_params);
+        }
+        Value* params = reverse(eval_params);
+
+        // Second, bind parameters to names. this may not be one to one (variadic)
+        Environment* new_envt = new Environment(proc->envt);
+        for(Value* param = params, *name = proc->args; name != EmptyList;
+             param = param->cdr, name = name->cdr) {
+          if(name->type != Value::Type::PAIR){
+            new_envt->setBinding(name, param);
+            break;
           }
-          new_envt->setBinding(name->car, eval(arg->car, envt));
+          if(param == EmptyList){
+            throw EvaluationError("Missing required arguments.");
+          }
+          new_envt->setBinding(name->car, param->car);
         }
 
         if(proc->is_primitive){
           return proc->prim_procedure(new_envt);
         }
-        // TODO: eval sequence of the proc body, using the new envt
+        // eval sequence of the proc body, using the new envt
         Value* res = nullptr;
-        for (Value* statement = proc->body; statement != nullptr;
+        for (Value* statement = proc->body; statement != EmptyList;
              statement = statement->cdr) {
           res = eval(statement->car, new_envt);
         }
@@ -205,6 +224,42 @@ Value* cons(Environment* envt){
     throw EvaluationError("Unable to get parameter for procedure.");
   }
   return new Value(eval(x, envt), eval(y, envt));
+}
+
+Value* add(Environment* envt){
+  auto args = envt->getBinding(getInternedSymbol("args"));
+  // args is a list of things to add
+  if(!args || args->type != Value::Type::PAIR){
+    throw EvaluationError("Must pass a list to add, even if its empty");
+  }
+  long res = 0;
+  for(Value* arg = args; arg != EmptyList; arg = arg->cdr){
+    if(arg->car->type != Value::Type::FIXNUM){
+      throw EvaluationError("Can only add things that evaluate to numbers.");
+    }
+    res += arg->car->fixnum;
+  }
+  return new Value{res};
+}
+
+Value* add2ormore(Environment* envt){
+  auto first = envt->getBinding(getInternedSymbol("first"));
+  auto second = envt->getBinding(getInternedSymbol("second"));
+  auto rest = envt->getBinding(getInternedSymbol("rest"));
+  if(!first || !second || !rest){
+    throw EvaluationError("Insufficient parameters, expects two or more.");
+  }
+  if(first->type != Value::Type::FIXNUM || second->type != Value::Type::FIXNUM){
+    throw EvaluationError("Can only add things that evaluate to numbers.");
+  }
+  long res = first->fixnum + second->fixnum;
+  for(Value* arg = rest; arg != EmptyList; arg = arg->cdr){
+    if(arg->car->type != Value::Type::FIXNUM){
+      throw EvaluationError("Can only add things that evaluate to numbers.");
+    }
+    res += arg->car->fixnum;
+  }
+  return new Value(res);
 }
 
 }

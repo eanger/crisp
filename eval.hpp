@@ -38,6 +38,8 @@ Value* Quasiquote(Value* input, Environment* envt);
 /***** Primitive Procedures *****/
 Value* addxyproc(Environment* envt);
 Value* cons(Environment* envt);
+Value* add(Environment* envt);
+Value* add2ormore(Environment* envt);
 
 Value* eval(Value* input, Environment* envt);
 

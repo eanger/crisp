@@ -1,10 +1,8 @@
 # Current To-do
-- implement cons to facilitate building lists: ie refactoring
-- implementing quasiquote and unquote
-
 
 # General
 - we're leaking memory now
+- primitive procedures may not need to have the global environment as a parent, only an empty environment
 
 # Read
 - add special characters #\newline and #\space

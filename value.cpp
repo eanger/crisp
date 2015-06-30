@@ -89,7 +89,7 @@ void print(Value* value) {
 
 Value* reverse(Value* list) {
   Value* result_list = EmptyList;
-  for(Value* ptr = list; ptr != nullptr; ptr = ptr->cdr){
+  for(Value* ptr = list; ptr != EmptyList; ptr = ptr->cdr){
     result_list = new Value(ptr->car, result_list);
   }
   return result_list;
@@ -97,6 +97,6 @@ Value* reverse(Value* list) {
 
 Value True{true};
 Value False{false};
-Value* EmptyList{nullptr};
+Value* EmptyList{new Value{nullptr, nullptr}};
 }
 
