@@ -44,6 +44,9 @@ void print(Value* value) {
     cout << "()";
     return;
   }
+  if(!value){
+    return;
+  }
   switch(value->type){
     case Value::Type::FIXNUM:{
       cout << value->fixnum;

@@ -37,6 +37,8 @@ void initEval() {
   GlobalEnvironment.setBinding(getInternedSymbol("if"), new Value(If));
   GlobalEnvironment.setBinding(getInternedSymbol("let"), new Value(Let));
   GlobalEnvironment.setBinding(getInternedSymbol("lambda"), new Value(Lambda));
+  GlobalEnvironment.setBinding(getInternedSymbol("quasiquote"), new Value(Quasiquote));
+  GlobalEnvironment.setBinding(getInternedSymbol("unquote"), new Value(Unquote));
 
   /* Primitive Procedures */
   Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), EmptyList));
@@ -199,6 +201,32 @@ Value* Let(Value* input, Environment* envt) {
 
 Value* Lambda(Value* input, Environment* envt) {
   return new Value(input->car, envt, input->cdr);
+}
+
+Value* Quasiquote(Value* input, Environment* envt){
+  return doQuasiquote(input->car, envt);
+}
+
+// This form takes the list of values left to be quasiquoted
+// ((unquote (add 1 2)))
+Value* doQuasiquote(Value* input, Environment* envt){
+  if(input->type != Value::Type::PAIR || input == EmptyList){
+    return input;
+  }
+  auto first_subexpr = input->car; // (unquote (add 1 2))
+  auto rest_subexprs = input->cdr; // ()
+  if(first_subexpr->type == Value::Type::PAIR &&
+     first_subexpr->car == getInternedSymbol("unquote")){
+    // unquote, ie evaluate, the unquoted form
+    first_subexpr = eval(first_subexpr->cdr->car, envt);
+  }
+  // take resulting first_subexpr (which may have been evaluated)
+  // and continue quasiquoting rest_subexprs
+  return new Value(first_subexpr, doQuasiquote(rest_subexprs, envt));
+}
+
+Value* Unquote(Value*, Environment*){
+  throw EvaluationError("Unquote can only happen inside quasiquote.");
 }
 
 /***** Primitive Procedures *****/

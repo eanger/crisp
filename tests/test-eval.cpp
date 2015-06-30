@@ -75,3 +75,38 @@ TEST_CASE("add2ormore adds two or more values"){
   REQUIRE(res->fixnum == 15);
 }
 
+TEST_CASE("quasiquote is like quote but only evaluates at runtime"){
+  initEval();
+  stringstream ss{"quasiquote"};
+  auto res = doEval(doRead(ss));
+  REQUIRE(res != nullptr);
+  REQUIRE(res->type == Value::Type::SPECIAL_FORM);
+
+  ss.str(string());
+  ss.clear();
+  ss << "(quasiquote (1 2 3))";
+  res = doEval(doRead(ss));
+  REQUIRE(res != nullptr);
+  REQUIRE(res->type == Value::Type::PAIR);
+  REQUIRE(res->car->type == Value::Type::FIXNUM);
+  REQUIRE(res->car->fixnum == 1);
+  REQUIRE(res->cdr->type == Value::Type::PAIR);
+  REQUIRE(res->cdr->car->type == Value::Type::FIXNUM);
+  REQUIRE(res->cdr->car->fixnum == 2);
+  REQUIRE(res->cdr->cdr->type == Value::Type::PAIR);
+  REQUIRE(res->cdr->cdr->car->type == Value::Type::FIXNUM);
+  REQUIRE(res->cdr->cdr->car->fixnum == 3);
+  REQUIRE(res->cdr->cdr->cdr == EmptyList);
+
+  ss.str(string());
+  ss.clear();
+  ss << "(quasiquote (9 (unquote (add 1 2))))";
+  res = doEval(doRead(ss));
+  REQUIRE(res != nullptr);
+  REQUIRE(res->type == Value::Type::PAIR);
+  REQUIRE(res->car->type == Value::Type::FIXNUM);
+  REQUIRE(res->car->fixnum == 9);
+  REQUIRE(res->cdr->car->type == Value::Type::FIXNUM);
+  REQUIRE(res->cdr->car->fixnum == 3);
+}
+

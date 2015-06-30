@@ -69,17 +69,17 @@ tuple<Value*, char*> readElement(char* input){
     case Token::QUOTE:{
       Value* quoted;
       tie(quoted, rest) = readElement(rest);
-      result = new Value(getInternedSymbol("quote"), new Value(quoted, nullptr));
+      result = new Value(getInternedSymbol("quote"), new Value(quoted, EmptyList));
     } break;
     case Token::BACKTICK:{
       Value* quasiquoted;
       tie(quasiquoted, rest) = readElement(rest);
-      result = new Value(getInternedSymbol("quasiquote"), new Value(quasiquoted, nullptr));
+      result = new Value(getInternedSymbol("quasiquote"), new Value(quasiquoted, EmptyList));
     } break;
     case Token::COMMA:{
       Value* unquoted;
       tie(unquoted, rest) = readElement(rest);
-      result = new Value(getInternedSymbol("unquote"), new Value(unquoted, nullptr));
+      result = new Value(getInternedSymbol("unquote"), new Value(unquoted, EmptyList));
     } break;
   }
   return {result, rest};
@@ -93,7 +93,8 @@ tuple<Value*, char*> readList(char* input, Value* list_so_far){
     Value* new_list = new Value(v, list_so_far);
     return readList(rest, new_list);
   } else {
-    return {reverse(list_so_far), rest};
+    auto l = list_so_far;
+    return {reverse(l), rest};
   }
 }
 
