@@ -19,7 +19,7 @@ bool isDelimiter(char c){
 }
 
 Value* read(Environment* envt){
-  auto input = envt->getBinding(getInternedSymbol("input"));
+  auto input = envt->getSymbolBinding("input");
   if(!input){
     throw EvaluationError("Cannot get input binding.");
   }
@@ -222,7 +222,7 @@ Value* doRead(istream& input_stream){
   Value::Str s{line.c_str()};
   Value v{s};
   Environment* envt = new Environment{&GlobalEnvironment};
-  envt->setBinding(getInternedSymbol("input"), &v);
+  envt->setSymbolBinding("input", &v);
   auto res = read(envt);
   return res;
 }

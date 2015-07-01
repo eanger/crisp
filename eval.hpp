@@ -18,7 +18,9 @@ struct Environment{
   Environment* parent;
 
   Value* getBinding(Value* value);
+  Value* getSymbolBinding(const std::string& key);
   void setBinding(Value* key, Value* binding);
+  void setSymbolBinding(const std::string& key, Value* binding);
   Environment(Environment* e) : bindings{}, parent{e} {}
 };
 

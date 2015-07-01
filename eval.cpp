@@ -25,43 +25,51 @@ Value* Environment::getBinding(Value* value) {
   }
 }
 
+Value* Environment::getSymbolBinding(const std::string& key){
+  return getBinding(getInternedSymbol(key));
+}
+
 void Environment::setBinding(Value* key, Value* binding) {
   bindings[key] = binding;
 }
 
+void Environment::setSymbolBinding(const std::string& key, Value* binding) {
+  setBinding(getInternedSymbol(key), binding);
+}
+
 void initEval() {
   /* Special Forms */
-  GlobalEnvironment.setBinding(getInternedSymbol("quote"), new Value(Quote));
-  GlobalEnvironment.setBinding(getInternedSymbol("define"), new Value(Define));
-  GlobalEnvironment.setBinding(getInternedSymbol("set!"), new Value(Set));
-  GlobalEnvironment.setBinding(getInternedSymbol("if"), new Value(If));
-  GlobalEnvironment.setBinding(getInternedSymbol("let"), new Value(Let));
-  GlobalEnvironment.setBinding(getInternedSymbol("lambda"), new Value(Lambda));
-  GlobalEnvironment.setBinding(getInternedSymbol("quasiquote"), new Value(Quasiquote));
-  GlobalEnvironment.setBinding(getInternedSymbol("unquote"), new Value(Unquote));
+  GlobalEnvironment.setSymbolBinding("quote", new Value(Quote));
+  GlobalEnvironment.setSymbolBinding("define", new Value(Define));
+  GlobalEnvironment.setSymbolBinding("set!", new Value(Set));
+  GlobalEnvironment.setSymbolBinding("if", new Value(If));
+  GlobalEnvironment.setSymbolBinding("let", new Value(Let));
+  GlobalEnvironment.setSymbolBinding("lambda", new Value(Lambda));
+  GlobalEnvironment.setSymbolBinding("quasiquote", new Value(Quasiquote));
+  GlobalEnvironment.setSymbolBinding("unquote", new Value(Unquote));
 
   /* Primitive Procedures */
   Value* args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), EmptyList));
   Value* addxy_proc = new Value(args, &GlobalEnvironment, addxyproc);
-  GlobalEnvironment.setBinding(getInternedSymbol("addxy"), addxy_proc);
+  GlobalEnvironment.setSymbolBinding("addxy", addxy_proc);
 
   args = new Value(getInternedSymbol("input"), EmptyList);
   Value* read_proc = new Value(args, &GlobalEnvironment, read);
-  GlobalEnvironment.setBinding(getInternedSymbol("read"), read_proc);
+  GlobalEnvironment.setSymbolBinding("read", read_proc);
 
   args = new Value(getInternedSymbol("x"), new Value(getInternedSymbol("y"), EmptyList));
   Value* cons_proc = new Value(args, &GlobalEnvironment, cons);
-  GlobalEnvironment.setBinding(getInternedSymbol("cons"), cons_proc);
+  GlobalEnvironment.setSymbolBinding("cons", cons_proc);
   
   args = getInternedSymbol("args");
   Value* add_proc = new Value(args, &GlobalEnvironment, add);
-  GlobalEnvironment.setBinding(getInternedSymbol("add"), add_proc);
+  GlobalEnvironment.setSymbolBinding("add", add_proc);
 
   args = new Value(
       getInternedSymbol("first"),
       new Value(getInternedSymbol("second"), getInternedSymbol("rest")));
   Value* add2ormore_proc = new Value(args, &GlobalEnvironment, add2ormore);
-  GlobalEnvironment.setBinding(getInternedSymbol("add2ormore"), add2ormore_proc);
+  GlobalEnvironment.setSymbolBinding("add2ormore", add2ormore_proc);
 }
 
 Value* doEval(Value* input){
@@ -232,8 +240,8 @@ Value* Unquote(Value*, Environment*){
 /***** Primitive Procedures *****/
 // this dummy procedure adds the value of x with the value of y
 Value* addxyproc(Environment* envt){
-  auto x = envt->getBinding(getInternedSymbol("x"));
-  auto y = envt->getBinding(getInternedSymbol("y"));
+  auto x = envt->getSymbolBinding("x");
+  auto y = envt->getSymbolBinding("y");
   if(!x || !y){
     throw EvaluationError("Unable to get parameter for procedure.");
   }
@@ -246,8 +254,8 @@ Value* addxyproc(Environment* envt){
 }
 
 Value* cons(Environment* envt){
-  auto x = envt->getBinding(getInternedSymbol("x"));
-  auto y = envt->getBinding(getInternedSymbol("y"));
+  auto x = envt->getSymbolBinding("x");
+  auto y = envt->getSymbolBinding("y");
   if(!x || !y){
     throw EvaluationError("Unable to get parameter for procedure.");
   }
@@ -255,7 +263,7 @@ Value* cons(Environment* envt){
 }
 
 Value* add(Environment* envt){
-  auto args = envt->getBinding(getInternedSymbol("args"));
+  auto args = envt->getSymbolBinding("args");
   // args is a list of things to add
   if(!args || args->type != Value::Type::PAIR){
     throw EvaluationError("Must pass a list to add, even if its empty");
@@ -271,9 +279,9 @@ Value* add(Environment* envt){
 }
 
 Value* add2ormore(Environment* envt){
-  auto first = envt->getBinding(getInternedSymbol("first"));
-  auto second = envt->getBinding(getInternedSymbol("second"));
-  auto rest = envt->getBinding(getInternedSymbol("rest"));
+  auto first = envt->getSymbolBinding("first");
+  auto second = envt->getSymbolBinding("second");
+  auto rest = envt->getSymbolBinding("rest");
   if(!first || !second || !rest){
     throw EvaluationError("Insufficient parameters, expects two or more.");
   }

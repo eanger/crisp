@@ -110,3 +110,10 @@ TEST_CASE("quasiquote is like quote but only evaluates at runtime"){
   REQUIRE(res->cdr->car->fixnum == 3);
 }
 
+TEST_CASE("symbol bindings added to environment"){
+  Environment envt{nullptr};
+  Value dummy;
+  envt.setSymbolBinding("test", &dummy);
+  REQUIRE(envt.getSymbolBinding("test") == &dummy);
+}
+
